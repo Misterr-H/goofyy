@@ -7,12 +7,12 @@ import App from './app.js';
 const cli = meow(
 	`
 	Usage
-	  $ goofy [song name]
+	  $ goofyy [song name]
 
 	Examples
-	  $ goofy "shape of you"
-	  $ goofy "ed sheeran perfect"
-	  $ goofy "bohemian rhapsody queen"
+	  $ goofyy "shape of you"
+	  $ goofyy "ed sheeran perfect"
+	  $ goofyy "bohemian rhapsody queen"
 
 	Press Ctrl + C to exit
 `,

@@ -9,7 +9,7 @@ interface InstallInstructionsProps {
 
 export const InstallInstructions: React.FC<InstallInstructionsProps> = ({ missing, query }) => {
     const platform = os.platform();
-    const command = query ? `goofy "${query}"` : 'goofy';
+    const command = query ? `goofyy "${query}"` : 'goofyy';
 
     return (
         <Box flexDirection="column">

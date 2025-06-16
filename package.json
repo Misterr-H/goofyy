@@ -1,6 +1,6 @@
 {
-	"name": "goofy",
-	"version": "0.0.0",
+	"name": "goofyy",
+	"version": "0.0.1",
 	"license": "MIT",
 	"bin": "dist/cli.js",
 	"type": "module",

@@ -108,7 +108,7 @@ export default function App({ initialQuery }: Props) {
 	return (
 		<Box flexDirection="column">
 			<Box marginBottom={1}>
-				<Text>🎵 Goofy Music Player</Text>
+				<Text>🎵 Goofyy Music Player</Text>
 			</Box>
 
 			{state.error ? (

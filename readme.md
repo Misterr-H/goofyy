@@ -1,4 +1,4 @@
-# 🎵 GOOFY – Terminal Music Player
+# 🎵 GOOFYY – Terminal Music Player
 
 > A sleek command-line music player that streams your favorite songs directly in the terminal! 🎸
 
@@ -13,7 +13,7 @@
 
 ## 🚀 Prerequisites
 
-Before installing Goofy, make sure you have:
+Before installing Goofyy, make sure you have:
 - [Node.js](https://nodejs.org/) installed
 - [ffmpeg](https://ffmpeg.org/) installed
 - [yt-dlp](https://github.com/yt-dlp/yt-dlp) installed
@@ -34,14 +34,14 @@ npm install
 ## 🎮 Usage
 
 ```bash
-# Start Goofy with a song
-goofy "shape of you"
+# Start Goofyy with a song
+goofyy "shape of you"
 
 # Search and play any song
-goofy "ed sheeran perfect"
+goofyy "ed sheeran perfect"
 
 # Play with artist and song name
-goofy "bohemian rhapsody queen"
+goofyy "bohemian rhapsody queen"
 ```
 
 ### Controls
@@ -51,7 +51,7 @@ goofy "bohemian rhapsody queen"
 
 ## 🛠️ Technical Details
 
-Goofy uses:
+Goofyy uses:
 - `yt-dlp` for fetching and streaming music
 - `ffmpeg` for audio processing
 - React Ink for the beautiful terminal UI
