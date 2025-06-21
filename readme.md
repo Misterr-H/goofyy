@@ -21,14 +21,9 @@ Before installing Goofyy, make sure you have:
 ## 📦 Installation
 
 ```bash
-# Clone the repository
-git clone https://github.com/yourusername/goofy.git
-
-# Navigate to the project directory
-cd goofy
-
-# Install dependencies
-npm install
+npx goofyy
+# OR
+npm i -g goofyy
 ```
 
 ## 🎮 Usage

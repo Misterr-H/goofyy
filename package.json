@@ -1,6 +1,8 @@
 {
 	"name": "goofyy",
-	"version": "0.0.1",
+	"version": "0.0.4",
+	"description": "Spotify – But for the terminal",
+	"author": "Himanshu https://x.com/Himanshu_Saiini",
 	"license": "MIT",
 	"bin": "dist/cli.js",
 	"type": "module",
@@ -15,6 +17,14 @@
 	"files": [
 		"dist"
 	],
+	"repository": {
+		"type": "git",
+		"url": "git+https://github.com/Misterr-H/goofyy.git"
+	},
+	"bugs": {
+		"url": "https://github.com/Misterr-H/goofyy/issues"
+	},
+	"homepage": "https://github.com/Misterr-H/goofyy#readme",
 	"dependencies": {
 		"ink": "^4.1.0",
 		"meow": "^11.0.0",
