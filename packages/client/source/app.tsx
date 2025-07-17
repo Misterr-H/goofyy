@@ -3,7 +3,7 @@ import { Box, Text, useInput, useApp } from 'ink';
 import { MusicPlayerService } from './services/musicPlayer.js';
 import { MusicPlayerState } from './types.js';
 import { ProgressBar } from './components/ProgressBar.js';
-import { InstallInstructions } from './components/InstallInstructions.js';
+// import { InstallInstructions } from './components/InstallInstructions.js';
 
 type Props = {
 	initialQuery?: string;
@@ -21,20 +21,13 @@ export default function App({ initialQuery }: Props) {
 		}
 	});
 	const [input, setInput] = useState(initialQuery || '');
-	const [missingDeps, setMissingDeps] = useState<string[]>([]);
 	const { exit } = useApp();
 	const musicPlayer = new MusicPlayerService();
 
 	useEffect(() => {
-		const checkDeps = async () => {
-			const missing = await musicPlayer.checkDependencies();
-			if (missing.length > 0) {
-				setMissingDeps(missing);
-			} else if (initialQuery) {
-				handleSearch(initialQuery);
-			}
-		};
-		checkDeps();
+		if (initialQuery) {
+			handleSearch(initialQuery);
+		}
 	}, []);
 
 	const handleSearch = async (query: string) => {
@@ -42,9 +35,14 @@ export default function App({ initialQuery }: Props) {
 
 		setState((prev: MusicPlayerState) => ({ ...prev, isSearching: true, error: null }));
 		try {
-			const songInfo = await musicPlayer.searchSong(query);
+			// Start both requests in parallel
+			const metadataPromise = musicPlayer.fetchMetadata(query);
+			const streamPromise = Promise.resolve(musicPlayer.getStream(query));
+
+			// Wait for metadata first to update UI
+			const songInfo = await metadataPromise;
 			const totalDuration = parseDuration(songInfo.duration);
-			
+
 			setState((prev: MusicPlayerState) => ({
 				...prev,
 				currentSong: songInfo,
@@ -65,7 +63,9 @@ export default function App({ initialQuery }: Props) {
 				}));
 			});
 
-			await musicPlayer.playSong(songInfo);
+			// Wait for stream to be ready, then play
+			const stream = await streamPromise;
+			await musicPlayer.playStream(songInfo, stream);
 			setState((prev: MusicPlayerState) => ({ ...prev, isPlaying: false }));
 		} catch (error) {
 			setState((prev: MusicPlayerState) => ({
@@ -100,10 +100,6 @@ export default function App({ initialQuery }: Props) {
 			setInput(r => r.slice(0, -1));
 		}
 	});
-
-	if (missingDeps.length > 0) {
-		return <InstallInstructions missing={missingDeps} query={initialQuery} />;
-	}
 
 	return (
 		<Box flexDirection="column">
