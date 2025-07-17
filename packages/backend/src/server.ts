@@ -37,6 +37,7 @@ app.get('/metadata', async (req, res) => {
         const info = await getSongInfo(query);
         res.json(info);
     } catch (e) {
+        console.error('Error fetching metadata:', e);
         res.status(500).json({ error: 'Failed to fetch metadata' });
     }
 });
@@ -49,7 +50,9 @@ app.get('/stream', async (req, res) => {
         if (info.title) res.set('X-Song-Title', info.title);
         if (info.duration) res.set('X-Song-Duration', info.duration.toString());
         if (info.artist) res.set('X-Song-Artist', info.artist);
-    } catch {}
+    } catch (e) {
+        console.error('Error fetching song info for stream:', e);
+    }
 
     const ytdlp = spawn('yt-dlp', [
         '--get-url',
@@ -80,8 +83,16 @@ app.get('/stream', async (req, res) => {
 
         ffmpeg.stdout.pipe(res);
 
-        ffmpeg.on('error', () => res.end());
+        ffmpeg.on('error', (err) => {
+            console.error('ffmpeg error:', err);
+            res.end();
+        });
         res.on('close', () => ffmpeg.kill('SIGINT'));
+    });
+
+    ytdlp.on('error', (err) => {
+        console.error('yt-dlp error:', err);
+        res.end();
     });
 });
 
