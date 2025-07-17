@@ -1,0 +1,24 @@
+# Use official Node.js LTS image
+FROM node:20
+
+# Install ffmpeg and yt-dlp
+RUN apt-get update && \
+    apt-get install -y ffmpeg python3-pip && \
+    pip3 install yt-dlp && \
+    rm -rf /var/lib/apt/lists/*
+
+# Set working directory
+WORKDIR /app
+
+# Copy package files and install dependencies
+COPY package*.json ./
+RUN npm install
+
+# Copy the rest of the backend code
+COPY . .
+
+# Expose the port your app runs on
+EXPOSE 3000
+
+# Start the server
+CMD ["npm", "start"] 
