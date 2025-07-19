@@ -87,12 +87,19 @@ export default function App({ initialQuery }: Props) {
 	};
 
 	useInput((input2, key) => {
+		// Handle ESC key first - should always work
 		if (key.escape) {
 			musicPlayer.cleanup();
 			exit();
+			return;
 		}
 
-		if (key.return && !state.isSearching && !state.isPlaying) {
+		// Handle other keys only if not searching
+		if (state.isSearching) {
+			return;
+		}
+
+		if (key.return && !state.isPlaying) {
 			handleSearch(input);
 		} else if (input2.length > 0) {
 			setInput(r => r + input2);
@@ -138,7 +145,8 @@ export default function App({ initialQuery }: Props) {
 									width={40}
 								/>
 							</Box>
-							<Text>Press ESC to exit</Text>
+							<Text>Join us on discord: https://discord.gg/HNJgYuSUQ3</Text>
+							<Text>Press Ctrl+C to exit</Text>
 						</Box>
 					)}
 				</>

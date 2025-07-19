@@ -1,26 +1,29 @@
 import got from 'got';
 import Speaker from 'speaker';
 import { SongInfo } from '../types.js';
+import { baseUrl } from '../baseUrl.js';
 
 export class MusicPlayerService {
     private speaker: any;
     private onProgressUpdate: ((elapsed: number) => void) | null = null;
     private progressInterval: NodeJS.Timeout | null = null;
     private startTime: number = 0;
+    // @ts-ignore
     private duration: number = 0;
 
     async checkDependencies(): Promise<string[]> {
         return [];
     }
 
+    // @ts-ignore
     getInstallInstructions(missing: string[]): string {
         return '';
     }
 
     // Fetch metadata only
     async fetchMetadata(query: string): Promise<SongInfo> {
-        const metadataUrl = `http://localhost:3000/metadata?q=${encodeURIComponent(query)}`;
-        const streamUrl = `http://localhost:3000/stream?q=${encodeURIComponent(query)}`;
+        const metadataUrl = `${baseUrl}/metadata?q=${encodeURIComponent(query)}`;
+        const streamUrl = `${baseUrl}/stream?q=${encodeURIComponent(query)}`;
         const response = await got(metadataUrl, { responseType: 'json' });
         const data = response.body as any;
         return {
@@ -32,7 +35,7 @@ export class MusicPlayerService {
 
     // Get stream only
     getStream(query: string) {
-        const streamUrl = `http://localhost:3000/stream?q=${encodeURIComponent(query)}`;
+        const streamUrl = `${baseUrl}/stream?q=${encodeURIComponent(query)}`;
         return got.stream(streamUrl);
     }
 
