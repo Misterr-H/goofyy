@@ -4,5 +4,10 @@
   "workspaces": [
     "packages/client",
     "packages/backend"
-  ]
+  ],
+  "scripts": {
+    "backend:dev": "npm run dev --workspace=packages/backend",
+    "backend:build": "npm run build --workspace=packages/backend",
+    "backend:start": "npm run start --workspace=packages/backend"
+  }
 } 

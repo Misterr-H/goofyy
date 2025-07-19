@@ -1,9 +1,11 @@
 # Use official Node.js LTS image
 FROM node:20
 
-# Install ffmpeg and yt-dlp via apt
+# Install ffmpeg via apt and latest yt-dlp via wget
 RUN apt-get update && \
-    apt-get install -y ffmpeg yt-dlp && \
+    apt-get install -y ffmpeg wget && \
+    wget https://github.com/yt-dlp/yt-dlp/releases/latest/download/yt-dlp -O /usr/local/bin/yt-dlp && \
+    chmod a+rx /usr/local/bin/yt-dlp && \
     rm -rf /var/lib/apt/lists/*
 
 # Set working directory
