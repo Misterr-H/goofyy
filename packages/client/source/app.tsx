@@ -3,7 +3,7 @@ import { Box, Text, useInput, useApp } from 'ink';
 import { MusicPlayerService } from './services/musicPlayer.js';
 import { MusicPlayerState } from './types.js';
 import { ProgressBar } from './components/ProgressBar.js';
-// import { InstallInstructions } from './components/InstallInstructions.js';
+import { Menu } from './components/Menu.js';
 
 type Props = {
 	initialQuery?: string;
@@ -21,6 +21,7 @@ export default function App({ initialQuery }: Props) {
 		}
 	});
 	const [input, setInput] = useState(initialQuery || '');
+	const [view, setView] = useState(initialQuery ? 'player' : 'menu');
 	const { exit } = useApp();
 	const musicPlayer = new MusicPlayerService();
 
@@ -99,14 +100,22 @@ export default function App({ initialQuery }: Props) {
 			return;
 		}
 
-		if (key.return && !state.isPlaying) {
-			handleSearch(input);
-		} else if (input2.length > 0) {
-			setInput(r => r + input2);
-		} else if(key.backspace || key.delete) {
-			setInput(r => r.slice(0, -1));
+		if (view === 'search') {
+			if (key.return && !state.isPlaying) {
+				setView('player');
+				handleSearch(input);
+			} else if (input2.length > 0) {
+				setInput(r => r + input2);
+			} else if(key.backspace || key.delete) {
+				setInput(r => r.slice(0, -1));
+			}
 		}
 	});
+
+	const menuItems = [
+		{ label: 'Search for a Song', value: 'search' },
+		{ label: 'Exit', value: 'exit' },
+	];
 
 	return (
 		<Box flexDirection="column">
@@ -120,7 +129,20 @@ export default function App({ initialQuery }: Props) {
 				</Box>
 			) : (
 				<>
-					{!state.currentSong && !state.isSearching && (
+					{view === 'menu' && (
+						<Menu
+							items={menuItems}
+							onSelect={item => {
+								if (item.value === 'exit') {
+									exit();
+								} else {
+									setView(item.value);
+								}
+							}}
+						/>
+					)}
+
+					{view === 'search' && !state.currentSong && !state.isSearching && (
 						<Box marginBottom={1}>
 							<Text>Enter song name to search: </Text>
 							<Text color="green">{input}</Text>
@@ -133,7 +155,7 @@ export default function App({ initialQuery }: Props) {
 						</Box>
 					)}
 
-					{state.currentSong && (
+					{view === 'player' && state.currentSong && (
 						<Box flexDirection="column">
 							<Box marginBottom={1}>
 								<Text>🎵 Now playing: {state.currentSong.title}</Text>
