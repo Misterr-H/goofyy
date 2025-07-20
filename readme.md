@@ -40,9 +40,10 @@ goofyy "bohemian rhapsody queen"
 ```
 
 ### Controls
-- Press `Enter` to start playing
+- Use `Up/Down Arrow` keys to navigate the menu
+- Press `Enter` to select a menu item
 - Press `ESC` to exit
-- Type to search for songs
+- Type to search for songs (when in Music screen)
 
 ## 🛠️ Technical Details
 
