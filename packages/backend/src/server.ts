@@ -296,6 +296,18 @@ app.get('/history', async (req, res) => {
     }
 });
 
+// Endpoint to get top charts
+app.get('/charts', (req, res) => {
+    const charts = [
+        { title: 'Never Gonna Give You Up', query: 'Rick Astley - Never Gonna Give You Up' },
+        { title: 'Bohemian Rhapsody', query: 'Queen - Bohemian Rhapsody' },
+        { title: 'Shape of You', query: 'Ed Sheeran - Shape of You' },
+        { title: 'Blinding Lights', query: 'The Weeknd - Blinding Lights' },
+        { title: 'Uptown Funk', query: 'Mark Ronson ft. Bruno Mars - Uptown Funk' },
+    ];
+    res.json(charts);
+});
+
 app.get('/stream', async (req, res) => {
     const query = req.query.q as string;
     client.capture({
