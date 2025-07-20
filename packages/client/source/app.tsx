@@ -125,6 +125,16 @@ export default function App({ initialQuery }: Props) {
 			return;
 		}
 
+		if (view === 'player' && key.space) {
+			if (state.isPlaying) {
+				musicPlayer.pause();
+				setState(prev => ({ ...prev, isPlaying: false }));
+			} else {
+				musicPlayer.resume();
+				setState(prev => ({ ...prev, isPlaying: true }));
+			}
+		}
+
 		// Handle other keys only if not searching
 		if (state.isSearching) {
 			return;
@@ -203,7 +213,7 @@ export default function App({ initialQuery }: Props) {
 					{view === 'player' && state.currentSong && (
 						<Box flexDirection="column">
 							<Box marginBottom={1}>
-								<Text>🎵 Now playing: {state.currentSong.title}</Text>
+								<Text>🎵 Now playing: {state.currentSong.title} ({state.isPlaying ? 'Playing' : 'Paused'})</Text>
 							</Box>
 							<Box marginBottom={1}>
 								<ProgressBar
@@ -213,7 +223,7 @@ export default function App({ initialQuery }: Props) {
 								/>
 							</Box>
 							<Text>Join us on discord: https://discord.gg/HNJgYuSUQ3</Text>
-							<Text>Press Ctrl+C to exit</Text>
+							<Text>Press [Space] to pause/resume, [ESC] to go back</Text>
 						</Box>
 					)}
 				</>
