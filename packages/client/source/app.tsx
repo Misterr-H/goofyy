@@ -23,6 +23,7 @@ export default function App({ initialQuery }: Props) {
 	const [input, setInput] = useState(initialQuery || '');
 	const [view, setView] = useState(initialQuery ? 'player' : 'menu');
 	const [history, setHistory] = useState<SongInfo[]>([]);
+	const [charts, setCharts] = useState<SongInfo[]>([]);
 	const { exit } = useApp();
 	const musicPlayer = new MusicPlayerService();
 
@@ -31,6 +32,7 @@ export default function App({ initialQuery }: Props) {
 			handleSearch(initialQuery);
 		} else {
 			loadHistory();
+			loadCharts();
 		}
 	}, []);
 
@@ -40,6 +42,15 @@ export default function App({ initialQuery }: Props) {
 			setHistory(historyItems);
 		} catch (error) {
 			setState(prev => ({ ...prev, error: 'Failed to load history' }));
+		}
+	};
+
+	const loadCharts = async () => {
+		try {
+			const chartItems = await musicPlayer.getCharts();
+			setCharts(chartItems);
+		} catch (error) {
+			setState(prev => ({ ...prev, error: 'Failed to load charts' }));
 		}
 	};
 
@@ -103,7 +114,7 @@ export default function App({ initialQuery }: Props) {
 	useInput((input2, key) => {
 		// Handle ESC key first - should always work
 		if (key.escape) {
-			if (view === 'player' || view === 'search') {
+			if (view === 'player' || view === 'search' || view === 'history' || view === 'charts') {
 				setView('menu');
 				setInput('');
 				setState(prev => ({ ...prev, currentSong: null, isPlaying: false, isSearching: false }));
@@ -133,6 +144,7 @@ export default function App({ initialQuery }: Props) {
 	const menuItems = [
 		{ label: 'Search for a Song', value: 'search' },
 		{ label: 'Playback History', value: 'history' },
+		{ label: 'Top Charts', value: 'charts' },
 		{ label: 'Exit', value: 'exit' },
 	];
 
@@ -164,6 +176,13 @@ export default function App({ initialQuery }: Props) {
 					{view === 'history' && (
 						<Menu
 							items={history.map(h => ({ label: h.title, value: h.query || h.title }))}
+							onSelect={item => handleSearch(item.value)}
+						/>
+					)}
+
+					{view === 'charts' && (
+						<Menu
+							items={charts.map(c => ({ label: c.title, value: c.query || c.title }))}
 							onSelect={item => handleSearch(item.value)}
 						/>
 					)}
