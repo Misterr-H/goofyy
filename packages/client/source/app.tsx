@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { Box, Text, useInput, useApp } from 'ink';
 import { MusicPlayerService } from './services/musicPlayer.js';
-import { MusicPlayerState } from './types.js';
+import { MusicPlayerState, SongInfo } from './types.js';
 import { ProgressBar } from './components/ProgressBar.js';
 import { Menu } from './components/Menu.js';
 
@@ -22,18 +22,31 @@ export default function App({ initialQuery }: Props) {
 	});
 	const [input, setInput] = useState(initialQuery || '');
 	const [view, setView] = useState(initialQuery ? 'player' : 'menu');
+	const [history, setHistory] = useState<SongInfo[]>([]);
 	const { exit } = useApp();
 	const musicPlayer = new MusicPlayerService();
 
 	useEffect(() => {
 		if (initialQuery) {
 			handleSearch(initialQuery);
+		} else {
+			loadHistory();
 		}
 	}, []);
+
+	const loadHistory = async () => {
+		try {
+			const historyItems = await musicPlayer.getHistory();
+			setHistory(historyItems);
+		} catch (error) {
+			setState(prev => ({ ...prev, error: 'Failed to load history' }));
+		}
+	};
 
 	const handleSearch = async (query: string) => {
 		if (!query.trim()) return;
 
+		setView('player');
 		setState((prev: MusicPlayerState) => ({ ...prev, isSearching: true, error: null }));
 		try {
 			// Start both requests in parallel
@@ -90,8 +103,14 @@ export default function App({ initialQuery }: Props) {
 	useInput((input2, key) => {
 		// Handle ESC key first - should always work
 		if (key.escape) {
-			musicPlayer.cleanup();
-			exit();
+			if (view === 'player' || view === 'search') {
+				setView('menu');
+				setInput('');
+				setState(prev => ({ ...prev, currentSong: null, isPlaying: false, isSearching: false }));
+				musicPlayer.cleanup();
+			} else {
+				exit();
+			}
 			return;
 		}
 
@@ -102,7 +121,6 @@ export default function App({ initialQuery }: Props) {
 
 		if (view === 'search') {
 			if (key.return && !state.isPlaying) {
-				setView('player');
 				handleSearch(input);
 			} else if (input2.length > 0) {
 				setInput(r => r + input2);
@@ -114,6 +132,7 @@ export default function App({ initialQuery }: Props) {
 
 	const menuItems = [
 		{ label: 'Search for a Song', value: 'search' },
+		{ label: 'Playback History', value: 'history' },
 		{ label: 'Exit', value: 'exit' },
 	];
 
@@ -139,6 +158,13 @@ export default function App({ initialQuery }: Props) {
 									setView(item.value);
 								}
 							}}
+						/>
+					)}
+
+					{view === 'history' && (
+						<Menu
+							items={history.map(h => ({ label: h.title, value: h.query || h.title }))}
+							onSelect={item => handleSearch(item.value)}
 						/>
 					)}
 
