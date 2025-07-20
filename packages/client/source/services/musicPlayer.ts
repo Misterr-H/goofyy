@@ -1,10 +1,18 @@
 import got from 'got';
-import Speaker from 'speaker';
+import * as portAudio from 'naudiodon2';
 import { SongInfo } from '../types.js';
 import { baseUrl } from '../baseUrl.js';
 
+// Minimal type declaration for naudiodon AudioIO
+// Remove or move to a .d.ts file if you add full types later
+interface AudioIO extends NodeJS.WritableStream {
+    start(): void;
+    quit(): void;
+    on(event: 'close', listener: () => void): this;
+}
+
 export class MusicPlayerService {
-    private speaker: any;
+    private speaker: AudioIO | null = null;
     private onProgressUpdate: ((elapsed: number) => void) | null = null;
     private progressInterval: NodeJS.Timeout | null = null;
     private startTime: number = 0;
@@ -66,11 +74,16 @@ export class MusicPlayerService {
             this.startTime = Date.now();
             this.duration = this.parseDuration(songInfo.duration);
 
-            this.speaker = new Speaker({
-                channels: 2,
-                bitDepth: 16,
-                sampleRate: 44100
-            });
+            // @ts-ignore
+            this.speaker = new portAudio.AudioIO({
+                outOptions: {
+                    channelCount: 2,
+                    sampleFormat: portAudio.SampleFormat16Bit,
+                    sampleRate: 44100,
+                    deviceId: -1, // default output device
+                    closeOnError: true
+                }
+            }) as unknown as AudioIO;
 
             stream.on('error', (err: Error) => {
                 if (this.progressInterval) clearInterval(this.progressInterval);
@@ -83,6 +96,7 @@ export class MusicPlayerService {
             });
 
             stream.pipe(this.speaker);
+            this.speaker.start();
 
             if (this.onProgressUpdate) {
                 this.progressInterval = setInterval(() => {
@@ -101,11 +115,16 @@ export class MusicPlayerService {
             this.startTime = Date.now();
             this.duration = this.parseDuration(songInfo.duration);
 
-            this.speaker = new Speaker({
-                channels: 2,
-                bitDepth: 16,
-                sampleRate: 44100
-            });
+            // @ts-ignore
+            this.speaker = new portAudio.AudioIO({
+                outOptions: {
+                    channelCount: 2,
+                    sampleFormat: portAudio.SampleFormat16Bit,
+                    sampleRate: 44100,
+                    deviceId: -1, // default output device
+                    closeOnError: true
+                }
+            }) as unknown as AudioIO;
 
             const stream = got.stream(songInfo.url);
 
@@ -120,6 +139,7 @@ export class MusicPlayerService {
             });
 
             stream.pipe(this.speaker);
+            this.speaker.start();
 
             if (this.onProgressUpdate) {
                 this.progressInterval = setInterval(() => {
@@ -134,7 +154,7 @@ export class MusicPlayerService {
 
     cleanup() {
         if (this.speaker) {
-            this.speaker.destroy();
+            this.speaker.quit();
         }
         if (this.progressInterval) {
             clearInterval(this.progressInterval);

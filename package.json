@@ -9,5 +9,8 @@
     "backend:dev": "npm run dev --workspace=packages/backend",
     "backend:build": "npm run build --workspace=packages/backend",
     "backend:start": "npm run start --workspace=packages/backend"
+  },
+  "dependencies": {
+    "naudiodon2": "github:nextliveab/naudiodon2"
   }
 }
