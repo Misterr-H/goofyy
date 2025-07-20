@@ -29,7 +29,8 @@ export class MusicPlayerService {
         return {
             title: data.title || query,
             duration: typeof data.duration === 'number' ? this.formatDuration(data.duration) : (data.duration || '0:00'),
-            url: streamUrl
+            url: streamUrl,
+            query: query
         };
     }
 
@@ -37,6 +38,12 @@ export class MusicPlayerService {
     getStream(query: string) {
         const streamUrl = `${baseUrl}/stream?q=${encodeURIComponent(query)}`;
         return got.stream(streamUrl);
+    }
+
+    async getHistory(): Promise<SongInfo[]> {
+        const historyUrl = `${baseUrl}/history`;
+        const response = await got(historyUrl, { responseType: 'json' });
+        return response.body as SongInfo[];
     }
 
     setProgressCallback(callback: (elapsed: number) => void) {
