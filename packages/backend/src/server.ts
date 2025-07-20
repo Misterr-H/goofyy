@@ -43,6 +43,22 @@ redisClient.on('connect', () => {
 
 const CACHE_TTL = 5 * 60; // 5 minutes in seconds
 const MAX_CACHE_ENTRIES = 1000; // Maximum number of cached songs
+const HISTORY_KEY = 'songHistory';
+const MAX_HISTORY_SIZE = 20;
+
+// Helper to add a song to the history
+async function addToHistory(songInfo: any) {
+    try {
+        const historyItem = JSON.stringify(songInfo);
+        // Use a transaction to avoid race conditions
+        await redisClient.multi()
+            .lPush(HISTORY_KEY, historyItem)
+            .lTrim(HISTORY_KEY, 0, MAX_HISTORY_SIZE - 1)
+            .exec();
+    } catch (err) {
+        console.error('Failed to add to history:', err);
+    }
+}
 
 // Helper to get song info using yt-dlp
 async function getSongInfo(query: string) {
@@ -266,6 +282,20 @@ app.delete('/cache/clear', async (req, res) => {
     }
 });
 
+// Endpoint to get playback history
+app.get('/history', async (req, res) => {
+    try {
+        const history = await redisClient.lRange(HISTORY_KEY, 0, -1);
+        const historyItems = history.map(item => JSON.parse(item));
+        res.json(historyItems);
+    } catch (err) {
+        res.status(500).json({
+            message: 'Failed to get history',
+            error: err instanceof Error ? err.message : 'Unknown error'
+        });
+    }
+});
+
 app.get('/stream', async (req, res) => {
     const query = req.query.q as string;
     client.capture({
@@ -287,6 +317,11 @@ app.get('/stream', async (req, res) => {
             throw e;
         })
     ]);
+
+    // Add to history if we have song info
+    if (info && info.title) {
+        addToHistory({ title: info.title, query });
+    }
 
     // Set headers immediately
     if (info.title) res.set('X-Song-Title', info.title);
