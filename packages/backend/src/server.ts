@@ -16,6 +16,9 @@ const client = new PostHog(
 
 const app = express();
 
+// Middleware
+app.use(express.json());
+
 // Redis client setup
 const redisClient = createClient({
     url: process.env.REDIS_URL || 'redis://localhost:6379'
@@ -102,6 +105,62 @@ async function getSongInfo(query: string) {
     });
 }
 
+// Add URL caching for video streams
+const STREAM_CACHE_TTL = 10 * 60; // 10 minutes for stream URLs
+
+// Helper to get video URL using yt-dlp
+async function getVideoUrl(query: string) {
+    const cacheKey = `stream:${query.toLowerCase().trim()}`;
+    
+    try {
+        const cached = await redisClient.get(cacheKey);
+        if (cached) {
+            console.log('Stream cache hit for:', query);
+            return cached;
+        }
+    } catch (err) {
+        console.error('Stream cache error:', err);
+    }
+
+    return new Promise((resolve, reject) => {
+        const ytdlp = spawn('yt-dlp', [
+            '--get-url',
+            '--format', 'bestaudio[ext=m4a]/bestaudio/best[height<=720]',
+            '--no-playlist',
+            '--no-warnings',
+            '--no-check-certificates',
+            '--max-downloads', '1',
+            '--playlist-items', '1',
+            '--extractor-args', 'youtube:player_client=android',
+            `ytsearch1:${query}`
+        ]);
+        
+        let videoUrl = '';
+        console.time('getVideoUrl');
+        
+        ytdlp.stdout.on('data', (data) => {
+            videoUrl += data.toString();
+        });
+        
+        ytdlp.on('close', async () => {
+            console.timeEnd('getVideoUrl');
+            const url = videoUrl.trim();
+            
+            // Cache the URL
+            try {
+                await redisClient.setEx(cacheKey, STREAM_CACHE_TTL, url);
+                console.log('Cached stream URL for:', query);
+            } catch (err) {
+                console.error('Failed to cache stream URL:', err);
+            }
+            
+            resolve(url);
+        });
+        
+        ytdlp.on('error', reject);
+    });
+}
+
 app.get('/metadata', async (req, res) => {
     const query = req.query.q as string;
     client.capture({
@@ -127,6 +186,10 @@ app.get('/cache/status', async (req, res) => {
         const dbSize = await redisClient.dbSize();
         const memoryUsage = await redisClient.memoryUsage('total');
         
+        // Get cache statistics
+        const songCacheKeys = await redisClient.keys('song:*');
+        const streamCacheKeys = await redisClient.keys('stream:*');
+        
         res.json({
             status: 'connected',
             dbSize,
@@ -134,13 +197,57 @@ app.get('/cache/status', async (req, res) => {
                 used: memoryUsage ? `${Math.round(memoryUsage / 1024 / 1024 * 100) / 100} MB` : 'Unknown',
                 bytes: memoryUsage || 0
             },
+            cacheStats: {
+                songCache: songCacheKeys.length,
+                streamCache: streamCacheKeys.length,
+                totalCached: songCacheKeys.length + streamCacheKeys.length
+            },
             maxEntries: MAX_CACHE_ENTRIES,
-            cacheTTL: `${CACHE_TTL} seconds`
+            cacheTTL: `${CACHE_TTL} seconds`,
+            streamCacheTTL: `${STREAM_CACHE_TTL} seconds`
         });
     } catch (err) {
         res.status(500).json({
             status: 'error',
             message: 'Failed to get cache status',
+            error: err instanceof Error ? err.message : 'Unknown error'
+        });
+    }
+});
+
+// Pre-warm cache endpoint for popular songs
+app.post('/cache/prewarm', async (req, res) => {
+    const { queries } = req.body;
+    
+    if (!Array.isArray(queries)) {
+        return res.status(400).json({ error: 'queries must be an array' });
+    }
+    
+    try {
+        const results = await Promise.allSettled(
+            queries.map(async (query: string) => {
+                const [metadata, streamUrl] = await Promise.all([
+                    getSongInfo(query),
+                    getVideoUrl(query)
+                ]);
+                return { query, success: true, metadata, hasStreamUrl: !!streamUrl };
+            })
+        );
+        
+        const successful = results.filter(r => r.status === 'fulfilled').length;
+        const failed = results.filter(r => r.status === 'rejected').length;
+        
+        res.json({
+            message: `Pre-warmed ${successful} queries, ${failed} failed`,
+            results: results.map((r, i) => ({
+                query: queries[i],
+                success: r.status === 'fulfilled',
+                error: r.status === 'rejected' ? (r as PromiseRejectedResult).reason?.message : undefined
+            }))
+        });
+    } catch (err) {
+        res.status(500).json({
+            message: 'Failed to pre-warm cache',
             error: err instanceof Error ? err.message : 'Unknown error'
         });
     }
@@ -168,55 +275,54 @@ app.get('/stream', async (req, res) => {
             query: query
         }
     });
-    let info: any = {};
-    try {
-        info = await getSongInfo(query);
-        if (info.title) res.set('X-Song-Title', info.title);
-        if (info.duration) res.set('X-Song-Duration', info.duration.toString());
-        if (info.artist) res.set('X-Song-Artist', info.artist);
-    } catch (e) {
-        console.error('Error fetching song info for stream:', e);
-    }
 
-    const ytdlp = spawn('yt-dlp', [
-        '--get-url',
-        '--format', 'bestaudio[ext=m4a]/bestaudio',
-        `ytsearch1:${query}`
+    // Start both metadata and URL fetching in parallel
+    const [info, videoUrl] = await Promise.all([
+        getSongInfo(query).catch(e => {
+            console.error('Error fetching song info for stream:', e);
+            return {};
+        }),
+        getVideoUrl(query).catch(e => {
+            console.error('Error fetching video URL:', e);
+            throw e;
+        })
     ]);
 
-    let videoUrl = '';
+    // Set headers immediately
+    if (info.title) res.set('X-Song-Title', info.title);
+    if (info.duration) res.set('X-Song-Duration', info.duration.toString());
+    if (info.artist) res.set('X-Song-Artist', info.artist);
 
-    ytdlp.stdout.on('data', (data) => {
-        videoUrl += data.toString();
+    // Use WAV format for reliable streaming
+    const ffmpeg = spawn('ffmpeg', [
+        '-i', videoUrl as string,
+        '-f', 'wav',
+        '-acodec', 'pcm_s16le',
+        '-ar', '44100',
+        '-ac', '2',
+        '-'
+    ]);
+
+    res.set({
+        'Content-Type': 'audio/wav',
+        'Transfer-Encoding': 'chunked',
+        'Cache-Control': 'no-cache',
+        'Connection': 'keep-alive'
     });
 
-    ytdlp.on('close', () => {
-        const ffmpeg = spawn('ffmpeg', [
-            '-i', videoUrl.trim(),
-            '-f', 'wav',
-            '-acodec', 'pcm_s16le',
-            '-ar', '44100',
-            '-ac', '2',
-            '-'
-        ]);
+    ffmpeg.stdout.pipe(res);
 
-        res.set({
-            'Content-Type': 'audio/wav',
-            'Transfer-Encoding': 'chunked'
-        });
-
-        ffmpeg.stdout.pipe(res);
-
-        ffmpeg.on('error', (err) => {
-            console.error('ffmpeg error:', err);
+    ffmpeg.on('error', (err: Error) => {
+        console.error('ffmpeg error:', err);
+        if (!res.headersSent) {
+            res.status(500).json({ error: 'Streaming failed' });
+        } else {
             res.end();
-        });
-        res.on('close', () => ffmpeg.kill('SIGINT'));
+        }
     });
 
-    ytdlp.on('error', (err) => {
-        console.error('yt-dlp error:', err);
-        res.end();
+    res.on('close', () => {
+        ffmpeg.kill('SIGINT');
     });
 });
 
