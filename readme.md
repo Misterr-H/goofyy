@@ -2,6 +2,18 @@
 
 > A sleek command-line music player that streams your favorite songs directly in the terminal! 🎸
 
+## Table of Contents
+- [Features](#-features)
+- [Prerequisites](#-prerequisites)
+- [Installation](#-installation)
+- [Usage](#-usage)
+- [Controls](#controls)
+- [Technical Details](#️-technical-details)
+- [Contributing](#-contributing)
+- [Future Enhancements](#-future-enhancements)
+- [License](#-license)
+- [Made with ❤️ by Himanshu](#-made-with-️-by-himanshu)
+
 ## ✨ Features
 
 - 🎧 Stream music directly in your terminal
@@ -10,6 +22,9 @@
 - ⚡️ Fast streaming with yt-dlp
 - 🎮 Simple keyboard controls
 - 📊 Real-time progress bar
+- 🎶 Basic song queuing functionality
+- ⏯️ Pause/Resume playback
+- ↩️ Intuitive navigation with menu system
 
 ## 🚀 Prerequisites
 
@@ -40,10 +55,12 @@ goofyy "bohemian rhapsody queen"
 ```
 
 ### Controls
-- Use `Up/Down Arrow` keys to navigate the menu
-- Press `Enter` to select a menu item
-- Press `ESC` to exit
-- Type to search for songs (when in Music screen)
+- **Arrow Keys**: Navigate menus
+- **Enter**: Select an option
+- **Spacebar**: Pause/Resume playback
+- **a**: Add a song to the queue from the search view (when in Music screen)
+- **ESC**: Go back to the previous menu / Clear current song / Exit application
+- **Ctrl+C**: Exit the application
 
 ## 🛠️ Technical Details
 
@@ -51,13 +68,35 @@ Goofyy uses:
 - `yt-dlp` for fetching and streaming music
 - `ffmpeg` for audio processing
 - React Ink for the beautiful terminal UI
+- Node.js for backend services
+- Redis for caching (backend)
 
 ## 🤝 Contributing
 
-Contributions are welcome! Feel free to:
+Contributions are highly welcome! If you'd like to contribute, please follow these steps:
+
+1.  **Fork the repository.**
+2.  **Clone your forked repository** to your local machine.
+3.  **Create a new branch** for your feature or bug fix: `git checkout -b feature/your-feature-name` or `git checkout -b bugfix/issue-description`.
+4.  **Make your changes** and ensure they adhere to the existing code style.
+5.  **Write clear and concise commit messages.**
+6.  **Push your branch** to your forked repository.
+7.  **Open a Pull Request** to the `main` branch of the original repository.
+
+Feel free to:
 - 🐛 Report bugs
 - 💡 Suggest new features
 - 🔧 Submit pull requests
+
+## 🚀 Future Enhancements
+
+Here are some ideas for future improvements:
+- **Full Playlist Management**: Create, save, and load playlists.
+- **Improved Queue Management**: Reorder, remove, and save queue.
+- **More Robust Playback Controls**: Skip, previous track, volume control.
+- **Configuration Options**: Allow users to customize settings directly from the UI.
+- **Cross-platform Compatibility**: Ensure seamless experience across different operating systems.
+- **Visualizer**: Add a simple audio visualizer.
 
 ## 📝 License
 
