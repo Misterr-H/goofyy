@@ -5,9 +5,12 @@ import { baseUrl } from '../baseUrl.js';
 
 export class MusicPlayerService {
     private speaker: any;
+    private stream: NodeJS.ReadableStream | null = null;
     private onProgressUpdate: ((elapsed: number) => void) | null = null;
     private progressInterval: NodeJS.Timeout | null = null;
     private startTime: number = 0;
+    private pausedTime: number = 0;
+    private isPaused: boolean = false;
     // @ts-ignore
     private duration: number = 0;
 
@@ -78,6 +81,7 @@ export class MusicPlayerService {
         return new Promise((resolve, reject) => {
             this.startTime = Date.now();
             this.duration = this.parseDuration(songInfo.duration);
+            this.stream = stream;
 
             this.speaker = new Speaker({
                 channels: 2,
@@ -85,7 +89,7 @@ export class MusicPlayerService {
                 sampleRate: 44100
             });
 
-            stream.on('error', (err: Error) => {
+            this.stream.on('error', (err: Error) => {
                 if (this.progressInterval) clearInterval(this.progressInterval);
                 reject(err);
             });
@@ -95,59 +99,43 @@ export class MusicPlayerService {
                 resolve();
             });
 
-            stream.pipe(this.speaker);
+            this.stream.pipe(this.speaker);
 
             if (this.onProgressUpdate) {
                 this.progressInterval = setInterval(() => {
-                    const elapsed = (Date.now() - this.startTime) / 1000;
-                    if (this.onProgressUpdate) {
-                        this.onProgressUpdate(elapsed);
+                    if (!this.isPaused) {
+                        const elapsed = (Date.now() - this.startTime) / 1000;
+                        if (this.onProgressUpdate) {
+                            this.onProgressUpdate(elapsed);
+                        }
                     }
                 }, 1000);
             }
         });
     }
 
-    // Keep for backward compatibility
-    async playSong(songInfo: SongInfo): Promise<void> {
-        return new Promise((resolve, reject) => {
-            this.startTime = Date.now();
-            this.duration = this.parseDuration(songInfo.duration);
+    pause() {
+        if (this.stream && !this.isPaused) {
+            this.isPaused = true;
+            this.stream.pause();
+            this.pausedTime = Date.now();
+        }
+    }
 
-            this.speaker = new Speaker({
-                channels: 2,
-                bitDepth: 16,
-                sampleRate: 44100
-            });
-
-            const stream = got.stream(songInfo.url);
-
-            stream.on('error', (err: Error) => {
-                if (this.progressInterval) clearInterval(this.progressInterval);
-                reject(err);
-            });
-
-            this.speaker.on('close', () => {
-                if (this.progressInterval) clearInterval(this.progressInterval);
-                resolve();
-            });
-
-            stream.pipe(this.speaker);
-
-            if (this.onProgressUpdate) {
-                this.progressInterval = setInterval(() => {
-                    const elapsed = (Date.now() - this.startTime) / 1000;
-                    if (this.onProgressUpdate) {
-                        this.onProgressUpdate(elapsed);
-                    }
-                }, 1000);
-            }
-        });
+    resume() {
+        if (this.stream && this.isPaused) {
+            this.isPaused = false;
+            this.stream.resume();
+            this.startTime += (Date.now() - this.pausedTime);
+        }
     }
 
     cleanup() {
         if (this.speaker) {
             this.speaker.destroy();
+        }
+        if (this.stream) {
+            this.stream.destroy();
         }
         if (this.progressInterval) {
             clearInterval(this.progressInterval);
