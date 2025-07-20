@@ -24,6 +24,7 @@ export default function App({ initialQuery }: Props) {
 	const [view, setView] = useState(initialQuery ? 'player' : 'menu');
 	const [history, setHistory] = useState<SongInfo[]>([]);
 	const [charts, setCharts] = useState<SongInfo[]>([]);
+	const [queue, setQueue] = useState<SongInfo[]>([]);
 	const { exit } = useApp();
 	const musicPlayer = new MusicPlayerService();
 
@@ -91,7 +92,15 @@ export default function App({ initialQuery }: Props) {
 			// Wait for stream to be ready, then play
 			const stream = await streamPromise;
 			await musicPlayer.playStream(songInfo, stream);
-			setState((prev: MusicPlayerState) => ({ ...prev, isPlaying: false }));
+			
+			// When the song finishes, play the next in queue or go to menu
+			if (queue.length > 0) {
+				const nextSong = queue[0];
+				setQueue(q => q.slice(1));
+				handleSearch(nextSong.query || nextSong.title);
+			} else {
+				setView('menu');
+			}
 		} catch (error) {
 			setState((prev: MusicPlayerState) => ({
 				...prev,
@@ -99,6 +108,11 @@ export default function App({ initialQuery }: Props) {
 				isSearching: false
 			}));
 		}
+	};
+
+	const addToQueue = (song: SongInfo) => {
+		setQueue(q => [...q, song]);
+		setView('menu');
 	};
 
 	const parseDuration = (duration: string): number => {
@@ -143,6 +157,8 @@ export default function App({ initialQuery }: Props) {
 		if (view === 'search') {
 			if (key.return && !state.isPlaying) {
 				handleSearch(input);
+			} else if (input2 === 'a') {
+				musicPlayer.fetchMetadata(input).then(addToQueue);
 			} else if (input2.length > 0) {
 				setInput(r => r + input2);
 			} else if(key.backspace || key.delete) {
@@ -155,6 +171,7 @@ export default function App({ initialQuery }: Props) {
 		{ label: 'Search for a Song', value: 'search' },
 		{ label: 'Playback History', value: 'history' },
 		{ label: 'Top Charts', value: 'charts' },
+		{ label: `View Queue (${queue.length})`, value: 'queue' },
 		{ label: 'Exit', value: 'exit' },
 	];
 
@@ -197,10 +214,18 @@ export default function App({ initialQuery }: Props) {
 						/>
 					)}
 
+					{view === 'queue' && (
+						<Menu
+							items={queue.map(q => ({ label: q.title, value: q.query || q.title }))}
+							onSelect={item => handleSearch(item.value)}
+						/>
+					)}
+
 					{view === 'search' && !state.currentSong && !state.isSearching && (
 						<Box marginBottom={1}>
 							<Text>Enter song name to search: </Text>
 							<Text color="green">{input}</Text>
+							<Text> (Press [a] to add to queue)</Text>
 						</Box>
 					)}
 
