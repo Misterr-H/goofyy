@@ -2,6 +2,7 @@ export interface SongInfo {
     title: string;
     duration: string;
     url: string;
+    query?: string;
 }
 
 export interface MusicPlayerState {
