@@ -46,6 +46,12 @@ export class MusicPlayerService {
         return response.body as SongInfo[];
     }
 
+    async getCharts(): Promise<SongInfo[]> {
+        const chartsUrl = `${baseUrl}/charts`;
+        const response = await got(chartsUrl, { responseType: 'json' });
+        return response.body as SongInfo[];
+    }
+
     setProgressCallback(callback: (elapsed: number) => void) {
         this.onProgressUpdate = callback;
     }
