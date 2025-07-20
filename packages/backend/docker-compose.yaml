@@ -1,0 +1,62 @@
+version: '3.8'
+
+services:
+  app:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    container_name: goofy-app
+    ports:
+      - "3000:3000"
+    environment:
+      - NODE_ENV=production
+      - REDIS_URL=redis://redis:6379
+      - POSTHOG_API_KEY=${POSTHOG_API_KEY}
+    depends_on:
+      - redis
+    restart: unless-stopped
+    deploy:
+      resources:
+        limits:
+          memory: 1G
+        reservations:
+          memory: 200M
+    networks:
+      - goofy-network
+
+  redis:
+    image: redis:7-alpine
+    container_name: goofy-redis
+    ports:
+      - "6379:6379"
+    command: >
+      redis-server 
+      --maxmemory 512mb
+      --maxmemory-policy allkeys-lru
+      --save 900 1
+      --save 300 10
+      --save 60 10000
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+    deploy:
+      resources:
+        limits:
+          memory: 600M
+        reservations:
+          memory: 100M
+    volumes:
+      - redis_data:/data
+    networks:
+      - goofy-network
+
+volumes:
+  redis_data:
+    driver: local
+
+networks:
+  goofy-network:
+    driver: bridge 
