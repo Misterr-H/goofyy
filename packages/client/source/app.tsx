@@ -3,7 +3,6 @@ import { Box, Text, useInput, useApp } from 'ink';
 import { MusicPlayerService } from './services/musicPlayer.js';
 import { MusicPlayerState } from './types.js';
 import { ProgressBar } from './components/ProgressBar.js';
-// import { InstallInstructions } from './components/InstallInstructions.js';
 
 type Props = {
 	initialQuery?: string;
@@ -18,7 +17,8 @@ export default function App({ initialQuery }: Props) {
 		progress: {
 			elapsed: 0,
 			total: 0
-		}
+		},
+		volume: 1
 	});
 	const [input, setInput] = useState(initialQuery || '');
 	const { exit } = useApp();
@@ -35,11 +35,9 @@ export default function App({ initialQuery }: Props) {
 
 		setState((prev: MusicPlayerState) => ({ ...prev, isSearching: true, error: null }));
 		try {
-			// Start both requests in parallel
 			const metadataPromise = musicPlayer.fetchMetadata(query);
 			const streamPromise = Promise.resolve(musicPlayer.getStream(query));
 
-			// Wait for metadata first to update UI
 			const songInfo = await metadataPromise;
 			const totalDuration = parseDuration(songInfo.duration);
 
@@ -63,7 +61,6 @@ export default function App({ initialQuery }: Props) {
 				}));
 			});
 
-			// Wait for stream to be ready, then play
 			const stream = await streamPromise;
 			await musicPlayer.playStream(songInfo, stream);
 			setState((prev: MusicPlayerState) => ({ ...prev, isPlaying: false }));
@@ -87,14 +84,20 @@ export default function App({ initialQuery }: Props) {
 	};
 
 	useInput((input2, key) => {
-		// Handle ESC key first - should always work
 		if (key.escape) {
 			musicPlayer.cleanup();
 			exit();
 			return;
 		}
 
-		// Handle other keys only if not searching
+		if (input2 === '+') {
+			musicPlayer.increaseVolume();
+			setState(prev => ({...prev, volume: musicPlayer.getVolume()}))
+		} else if (input2 === '-') {
+			musicPlayer.decreaseVolume();
+			setState(prev => ({...prev, volume: musicPlayer.getVolume()}))
+		}
+
 		if (state.isSearching) {
 			return;
 		}
@@ -144,6 +147,9 @@ export default function App({ initialQuery }: Props) {
 									total={state.progress.total}
 									width={40}
 								/>
+							</Box>
+							<Box marginBottom={1}>
+								<Text>Volume: {'█'.repeat(state.volume * 10).padEnd(10, '░')}</Text>
 							</Box>
 							<Text>Join us on discord: https://discord.gg/HNJgYuSUQ3</Text>
 							<Text>Press Ctrl+C to exit</Text>

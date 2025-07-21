@@ -2,25 +2,31 @@ import got from 'got';
 import Speaker from 'speaker';
 import { SongInfo } from '../types.js';
 import { baseUrl } from '../baseUrl.js';
+import { Volume } from 'pcm-volume';
 
 export class MusicPlayerService {
     private speaker: any;
     private onProgressUpdate: ((elapsed: number) => void) | null = null;
     private progressInterval: NodeJS.Timeout | null = null;
     private startTime: number = 0;
-    // @ts-ignore
     private duration: number = 0;
+    private currentSongInfo: SongInfo | null = null;
+    private currentStream: NodeJS.ReadableStream | null = null;
+    private _isPlaying: boolean = false;
+    private volume: Volume;
+
+    constructor() {
+        this.volume = new Volume();
+    }
 
     async checkDependencies(): Promise<string[]> {
         return [];
     }
 
-    // @ts-ignore
     getInstallInstructions(missing: string[]): string {
         return '';
     }
 
-    // Fetch metadata only
     async fetchMetadata(query: string): Promise<SongInfo> {
         const metadataUrl = `${baseUrl}/metadata?q=${encodeURIComponent(query)}`;
         const streamUrl = `${baseUrl}/stream?q=${encodeURIComponent(query)}`;
@@ -33,8 +39,7 @@ export class MusicPlayerService {
         };
     }
 
-    // Get stream only
-    getStream(query: string) {
+    getStream(query: string): NodeJS.ReadableStream {
         const streamUrl = `${baseUrl}/stream?q=${encodeURIComponent(query)}`;
         return got.stream(streamUrl);
     }
@@ -60,9 +65,11 @@ export class MusicPlayerService {
         return `${m}:${s.toString().padStart(2, '0')}`;
     }
 
-    // Play using a provided stream and songInfo
     async playStream(songInfo: SongInfo, stream: NodeJS.ReadableStream): Promise<void> {
         return new Promise((resolve, reject) => {
+            this.cleanup(); // Ensure any previous playback is stopped
+            this.currentSongInfo = songInfo;
+            this.currentStream = stream;
             this.startTime = Date.now();
             this.duration = this.parseDuration(songInfo.duration);
 
@@ -73,16 +80,17 @@ export class MusicPlayerService {
             });
 
             stream.on('error', (err: Error) => {
-                if (this.progressInterval) clearInterval(this.progressInterval);
+                this.cleanup();
                 reject(err);
             });
 
             this.speaker.on('close', () => {
-                if (this.progressInterval) clearInterval(this.progressInterval);
+                this.cleanup();
                 resolve();
             });
 
-            stream.pipe(this.speaker);
+            stream.pipe(this.volume).pipe(this.speaker);
+            this._isPlaying = true;
 
             if (this.onProgressUpdate) {
                 this.progressInterval = setInterval(() => {
@@ -97,47 +105,54 @@ export class MusicPlayerService {
 
     // Keep for backward compatibility
     async playSong(songInfo: SongInfo): Promise<void> {
-        return new Promise((resolve, reject) => {
-            this.startTime = Date.now();
-            this.duration = this.parseDuration(songInfo.duration);
-
-            this.speaker = new Speaker({
-                channels: 2,
-                bitDepth: 16,
-                sampleRate: 44100
-            });
-
-            const stream = got.stream(songInfo.url);
-
-            stream.on('error', (err: Error) => {
-                if (this.progressInterval) clearInterval(this.progressInterval);
-                reject(err);
-            });
-
-            this.speaker.on('close', () => {
-                if (this.progressInterval) clearInterval(this.progressInterval);
-                resolve();
-            });
-
-            stream.pipe(this.speaker);
-
-            if (this.onProgressUpdate) {
-                this.progressInterval = setInterval(() => {
-                    const elapsed = (Date.now() - this.startTime) / 1000;
-                    if (this.onProgressUpdate) {
-                        this.onProgressUpdate(elapsed);
-                    }
-                }, 1000);
-            }
-        });
+        const stream = this.getStream(songInfo.title); // Re-fetch stream for playSong
+        return this.playStream(songInfo, stream);
     }
 
     cleanup() {
-        if (this.speaker) {
-            this.speaker.destroy();
-        }
         if (this.progressInterval) {
             clearInterval(this.progressInterval);
+            this.progressInterval = null;
+        }
+        if (this.speaker) {
+            this.speaker.destroy();
+            this.speaker = null;
+        }
+        if (this.currentStream) {
+            this.currentStream.destroy(); // Stop the stream
+            this.currentStream = null;
+        }
+        this._isPlaying = false;
+    }
+
+    togglePlayback(): void {
+        if (this._isPlaying) {
+            this.cleanup();
+        } else if (this.currentSongInfo) {
+            // To resume, we need to re-fetch the stream and play from beginning
+            // True pause/resume is complex with current speaker library
+            const stream = this.getStream(this.currentSongInfo.title);
+            this.playStream(this.currentSongInfo, stream);
         }
     }
-} 
+
+    getIsPlaying(): boolean {
+        return this._isPlaying;
+    }
+
+    setVolume(volume: number) {
+        this.volume.setVolume(volume);
+    }
+
+    increaseVolume(amount = 0.1) {
+        const currentVolume = this.volume.volume;
+        this.volume.setVolume(Math.min(currentVolume + amount, 1));
+    }
+
+    decreaseVolume(amount = 0.1) {
+        const currentVolume = this.volume.volume;
+        this.volume.setVolume(Math.max(currentVolume - amount, 0));
+    }
+}
+
+export const musicPlayerService = new MusicPlayerService(); 
