@@ -9,7 +9,7 @@ type Props = {
 	initialQuery?: string;
 };
 
-type Screen = 'home' | 'music' | 'settings' | 'about';
+type Screen = 'home' | 'music' | 'playlists' | 'trending' | 'settings' | 'about';
 
 export default function App({ initialQuery }: Props) {
 	const [state, setState] = useState<MusicPlayerState>({
@@ -32,7 +32,9 @@ export default function App({ initialQuery }: Props) {
 
 	const menuItems = [
 		{ label: 'Home', screen: 'home' },
-		{ label: 'Music', screen: 'music' },
+		{ label: 'Music Player', screen: 'music' },
+		{ label: 'Playlists', screen: 'playlists' },
+		{ label: 'Trending song', screen: 'trending' },
 		{ label: 'Settings', screen: 'settings' },
 		{ label: 'About', screen: 'about' }
 	];
@@ -231,6 +233,18 @@ export default function App({ initialQuery }: Props) {
 			{currentScreen === 'about' && (
 				<Box>
 					<Text>About Goofyy Music Player.</Text>
+				</Box>
+			)}
+
+			{currentScreen === 'playlists' && (
+				<Box>
+					<Text>Playlists are currently under development.</Text>
+				</Box>
+			)}
+
+			{currentScreen === 'trending' && (
+				<Box>
+					<Text>Trending songs are currently under development.</Text>
 				</Box>
 			)}
 
