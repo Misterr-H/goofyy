@@ -1,11 +1,10 @@
 import React, { useState, useEffect } from 'react';
 import { Box, Text, useInput, useApp } from 'ink';
-import { MusicPlayerService } from './services/musicPlayer.js';
 import { exec } from 'child_process';
 
-import { MusicPlayerState, SongInfo } from './types.js';
 import { ProgressBar } from './components/ProgressBar.js';
 import { Menu } from './components/Menu.js';
+import { useMusicPlayer } from './hooks/useMusicPlayer.js';
 
 type Props = {
 	initialQuery?: string;
@@ -14,23 +13,11 @@ type Props = {
 type Screen = 'home' | 'music' | 'playlists' | 'trending' | 'search_input' | 'about' | 'star_on_github_action';
 
 export default function App({ initialQuery }: Props) {
-	const [state, setState] = useState<MusicPlayerState>({
-		isPlaying: false,
-		currentSong: null,
-		error: null,
-		isSearching: false,
-		progress: {
-			elapsed: 0,
-			total: 0
-		}
-	});
-	const [input, setInput] = useState(initialQuery || '');
+	const { state, input, setInput, songQueue, setSongQueue, message, setMessage, handleSearch, togglePlayback, addSongToQueue, clearCurrentSong } = useMusicPlayer(initialQuery);
+
 	const [selectedMenuIndex, setSelectedMenuIndex] = useState(0);
 	const [currentScreen, setCurrentScreen] = useState<Screen>('music'); // Default to music player
-	const [songQueue, setSongQueue] = useState<SongInfo[]>([]);
-	const [message, setMessage] = useState<string | null>(null);
 	const { exit } = useApp();
-	const musicPlayer = React.useRef(new MusicPlayerService()).current;
 
 	const menuItems = [
 		{ label: 'Home', screen: 'home' },
@@ -43,71 +30,6 @@ export default function App({ initialQuery }: Props) {
 		{ label: 'Star on github', screen: 'star_on_github_action' }
 	];
 
-	useEffect(() => {
-		if (initialQuery) {
-			handleSearch(initialQuery);
-		}
-	}, []);
-
-	const handleSearch = async (query: string) => {
-		if (!query.trim()) return;
-
-		musicPlayer.cleanup(); // Ensure any previous playback is stopped
-
-		setState((prev: MusicPlayerState) => ({ ...prev, isSearching: true, error: null }));
-		try {
-			// Start both requests in parallel
-			const metadataPromise = musicPlayer.fetchMetadata(query);
-			const streamPromise = Promise.resolve(musicPlayer.getStream(query));
-
-			// Wait for metadata first to update UI
-			const songInfo = await metadataPromise;
-			const totalDuration = parseDuration(songInfo.duration);
-
-			setState((prev: MusicPlayerState) => ({
-				...prev,
-				currentSong: songInfo,
-				isSearching: false,
-				progress: {
-					elapsed: 0,
-					total: totalDuration
-				}
-			}));
-
-			musicPlayer.setProgressCallback((elapsed: number) => {
-				setState((prev: MusicPlayerState) => ({
-					...prev,
-					progress: {
-						...prev.progress,
-						elapsed
-					}
-				}));
-			});
-
-			// Wait for stream to be ready, then play
-			const stream = await streamPromise;
-			await musicPlayer.playStream(songInfo, stream);
-			setState((prev: MusicPlayerState) => ({ ...prev, isPlaying: musicPlayer.getIsPlaying() }));
-			setInput(''); // Clear input after successful search
-		} catch (error) {
-			setState((prev: MusicPlayerState) => ({
-				...prev,
-				error: error instanceof Error ? error.message : 'An error occurred',
-				isSearching: false
-			}));
-		}
-	};
-
-	const parseDuration = (duration: string): number => {
-		const parts = duration.split(':');
-		if (parts.length === 2) {
-			return parseInt(parts[0] || '0') * 60 + parseInt(parts[1] || '0');
-		} else if (parts.length === 3) {
-			return parseInt(parts[0] || '0') * 3600 + parseInt(parts[1] || '0') * 60 + parseInt(parts[2] || '0');
-		}
-		return 0;
-	};
-
 	useInput((input2, key) => {
 		// 1. Handle ESC key (highest priority for exiting modes/screens)
 		if (key.escape) {
@@ -116,10 +38,7 @@ export default function App({ initialQuery }: Props) {
 				setCurrentScreen('music'); // Go back to music screen
 			} else if (currentScreen === 'music') {
 				if (state.currentSong) {
-					musicPlayer.cleanup();
-					setState(prev => ({ ...prev, currentSong: null, isPlaying: false, error: null }));
-					setInput(''); // Clear input after stopping song
-					setMessage('Cleared current song.');
+					clearCurrentSong();
 				} else if (input.trim().length > 0) { // If there's input but no song playing/searching
 					setInput(''); // Clear input
 					setMessage('Search input cleared.');
@@ -137,17 +56,14 @@ export default function App({ initialQuery }: Props) {
 		// 2. Handle Spacebar (for playback control on music screen)
 		if (input2 === ' ') {
 			if (currentScreen === 'music' && state.currentSong) {
-				musicPlayer.togglePlayback();
-				setState(prev => ({ ...prev, isPlaying: musicPlayer.getIsPlaying() }));
-				setMessage(musicPlayer.getIsPlaying() ? 'Resumed playback.' : 'Playback paused.');
+				togglePlayback();
 			}
 			return;
 		}
 
 		// 3. Handle 'a' for adding to queue (only on music screen with a song)
 		if (input2 === 'a' && currentScreen === 'music' && state.currentSong && !state.isSearching) {
-			setSongQueue(prev => [...prev, state.currentSong!]);
-			setMessage(`Added "${state.currentSong.title}" to queue.`);
+			addSongToQueue();
 			return;
 		}
 
