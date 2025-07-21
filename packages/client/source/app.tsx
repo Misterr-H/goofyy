@@ -29,7 +29,7 @@ export default function App({ initialQuery }: Props) {
 	const [songQueue, setSongQueue] = useState<SongInfo[]>([]);
 	const [message, setMessage] = useState<string | null>(null);
 	const { exit } = useApp();
-	const musicPlayer = new MusicPlayerService();
+	const musicPlayer = React.useRef(new MusicPlayerService()).current;
 
 	const menuItems = [
 		{ label: 'Home', screen: 'home' },
