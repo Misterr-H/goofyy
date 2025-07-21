@@ -13,6 +13,7 @@ export interface MusicPlayerState {
         elapsed: number;  // in seconds
         total: number;    // in seconds
     };
+    volume: number;
 }
 
 export interface ProgressBarProps {
