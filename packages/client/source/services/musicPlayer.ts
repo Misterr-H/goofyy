@@ -2,7 +2,7 @@ import got from 'got';
 import Speaker from 'speaker';
 import { SongInfo } from '../types.js';
 import { baseUrl } from '../baseUrl.js';
-import { Volume } from 'pcm-volume';
+import * as Volume from 'pcm-volume';
 
 export class MusicPlayerService {
     private speaker: any;
@@ -122,7 +122,6 @@ export class MusicPlayerService {
             this.speaker = null;
         }
         if (this.currentStream) {
-            this.currentStream.destroy(); // Stop the stream
             this.currentStream = null;
         }
         this._isPlaying = false;
