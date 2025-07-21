@@ -137,14 +137,14 @@ async function getVideoUrl(query: string) {
         ]);
         
         let videoUrl = '';
-        console.time('getVideoUrl');
+        // console.time('getVideoUrl'); // Removed to avoid duplicate label warning
         
         ytdlp.stdout.on('data', (data) => {
             videoUrl += data.toString();
         });
         
         ytdlp.on('close', async () => {
-            console.timeEnd('getVideoUrl');
+            // console.timeEnd('getVideoUrl'); // Removed to avoid no such label warning
             const url = videoUrl.trim();
             
             // Cache the URL
