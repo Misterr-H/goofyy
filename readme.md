@@ -5,8 +5,7 @@
 ## Table of Contents
 - [Features](#-features)
 - [Prerequisites](#-prerequisites)
-- [Installation](#-installation)
-- [Usage](#-usage)
+- [Installation & Usage](#-installation--usage)
 - [Controls](#controls)
 - [Technical Details](#️-technical-details)
 - [Contributing](#-contributing)
@@ -28,34 +27,47 @@
 
 ## 🚀 Prerequisites
 
-Before installing Goofyy, make sure you have:
-- [Node.js](https://nodejs.org/) installed
-- [ffmpeg](https://ffmpeg.org/) installed
-- [yt-dlp](https://github.com/yt-dlp/yt-dlp) installed
+Before installing Goofyy, make sure you have the following installed on your system:
+- [Node.js](https://nodejs.org/) (includes npm)
+- [ffmpeg](https://ffmpeg.org/)
+- [yt-dlp](https://github.com/yt-dlp/yt-dlp)
+- [Redis](https://redis.io/docs/getting-started/installation/) (local installation required for caching)
 
-## 📦 Installation
+## 📦 Installation & Usage
 
-```bash
-npx goofyy
-# OR
-npm i -g goofyy
-```
+To set up the development environment and run Goofyy, follow these steps:
 
-## 🎮 Usage
+1.  **Run the setup script:**
+    Open your terminal, navigate to the root directory of the Goofyy project, and run the `setup.sh` script. This script will handle dependency checks, Redis server management, Node.js package installations, and start both the backend and client development servers.
 
-```bash
-# Start Goofyy with a song
-goofyy "shape of you"
+    ```bash
+    ./setup.sh
+    ```
 
-# Search and play any song
-goofyy "ed sheeran perfect"
+    **About `setup.sh`:**
+    This script automates the setup and development environment for Goofyy. It performs the following actions:
+    -   **Dependency Checks:** Verifies the presence of `node`, `npm`, `yt-dlp`, `ffmpeg`, and `redis-server`. If any are missing, it provides instructions for manual installation.
+    -   **Redis Server Management:** Checks if a local Redis server is running. If not, it attempts to start one in the background. Ensure Redis is properly installed and accessible.
+    -   **Node.js Dependencies:** Installs `npm` packages for both the `backend` and `client` components if they are not already installed.
+    -   **Environment Setup:** Creates a `.env` file for the backend from `.env.example` if it doesn't exist, prompting the user to configure it (e.g., for `POSTHOG_API_KEY`).
+    -   **Server Startup:** Launches the backend (Express.js server) and client (React Ink development server) in the background.
+    -   **Graceful Shutdown:** Configures a `Ctrl+C` trap to ensure both the backend and client processes are terminated cleanly when you exit the script.
 
-# Play with artist and song name
-goofyy "bohemian rhapsody queen"
-```
+2.  **Start the Goofyy Client:**
+    After `setup.sh` has successfully started the backend and client development servers, open a *new* terminal window. Navigate to the root directory of the Goofyy project and execute the following command:
 
-### Controls
-- **Arrow Keys**: Navigate menus
+    ```bash
+    node packages/client/dist/cli.js
+    ```
+
+    This command directly runs the compiled client application, ensuring you see the latest changes and the interactive menu. If you want to search for a song immediately, you can provide a query:
+
+    ```bash
+    node packages/client/dist/cli.js "your song query here"
+    ```
+
+## Controls
+- **Left/Right Arrow Keys**: Navigate menus
 - **Enter**: Select an option
 - **Spacebar**: Pause/Resume playback
 - **a**: Add a song to the queue from the search view (when in Music screen)

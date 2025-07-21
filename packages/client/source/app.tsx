@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { Box, Text, useInput, useApp } from 'ink';
 import { MusicPlayerService } from './services/musicPlayer.js';
+import { exec } from 'child_process';
 
 import { MusicPlayerState, SongInfo } from './types.js';
 import { ProgressBar } from './components/ProgressBar.js';
@@ -121,7 +122,7 @@ export default function App({ initialQuery }: Props) {
 		}
 
 		// Handle Spacebar for pause/resume
-		if (key.space) {
+		if (input2 === ' ') {
 			if (currentScreen === 'music' && state.currentSong) {
 				musicPlayer.togglePlayback();
 				setState(prev => ({ ...prev, isPlaying: musicPlayer.getIsPlaying() }));

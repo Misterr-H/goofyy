@@ -113,7 +113,7 @@ export class MusicPlayerService {
             this.speaker = null;
         }
         if (this.currentStream) {
-            this.currentStream.destroy(); // Stop the stream
+            (this.currentStream as any).destroy();
             this.currentStream = null;
         }
         this._isPlaying = false;
