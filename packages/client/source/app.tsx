@@ -96,6 +96,9 @@ export default function App({ initialQuery }: Props) {
 		} else if (input2 === '-') {
 			musicPlayer.decreaseVolume();
 			setState(prev => ({...prev, volume: musicPlayer.getVolume()}))
+		} else if (input2 === ' ') {
+			musicPlayer.togglePlayback();
+			setState(prev => ({...prev, isPlaying: musicPlayer.getIsPlaying()}))
 		}
 
 		if (state.isSearching) {
