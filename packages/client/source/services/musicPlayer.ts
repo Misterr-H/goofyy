@@ -125,14 +125,30 @@ export class MusicPlayerService {
         this._isPlaying = false;
     }
 
+    private _isPaused: boolean = false;
+
     togglePlayback(): void {
-        if (this._isPlaying) {
-            this.cleanup();
-        } else if (this.currentSongInfo) {
-            // To resume, we need to re-fetch the stream and play from beginning
-            // True pause/resume is complex with current speaker library
-            const stream = this.getStream(this.currentSongInfo.title);
-            this.playStream(this.currentSongInfo, stream);
+        if (!this.currentStream) return;
+
+        if (this._isPlaying && !this._isPaused) {
+            this.currentStream.unpipe(this.volume);
+            if (this.progressInterval) {
+                clearInterval(this.progressInterval);
+                this.progressInterval = null;
+            }
+            this._isPaused = true;
+        } else if (this._isPlaying && this._isPaused) {
+            this.currentStream.pipe(this.volume);
+            this.startTime = Date.now() - (this.progress.elapsed * 1000);
+            if (this.onProgressUpdate) {
+                this.progressInterval = setInterval(() => {
+                    const elapsed = (Date.now() - this.startTime) / 1000;
+                    if (this.onProgressUpdate) {
+                        this.onProgressUpdate(elapsed);
+                    }
+                }, 1000);
+            }
+            this._isPaused = false;
         }
     }
 
