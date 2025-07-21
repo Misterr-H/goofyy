@@ -1,23 +1,23 @@
-export interface SongInfo {
-    title: string;
-    duration: string;
-    url: string;
-}
+export type SongInfo = {
+	title: string;
+	duration: string;
+	url: string;
+};
 
-export interface MusicPlayerState {
-    isPlaying: boolean;
-    currentSong: SongInfo | null;
-    error: string | null;
-    isSearching: boolean;
-    progress: {
-        elapsed: number;  // in seconds
-        total: number;    // in seconds
-    };
-    volume: number;
-}
+export type MusicPlayerState = {
+	isPlaying: boolean;
+	currentSong: SongInfo | undefined;
+	error: string | undefined;
+	isSearching: boolean;
+	progress: {
+		elapsed: number; // In seconds
+		total: number; // In seconds
+	};
+	volume: number;
+};
 
-export interface ProgressBarProps {
-    elapsed: number;
-    total: number;
-    width: number;
-} 
+export type ProgressBarProps = {
+	elapsed: number;
+	total: number;
+	width: number;
+};

@@ -61,7 +61,8 @@
 		"extends": "xo-react",
 		"prettier": true,
 		"rules": {
-			"react/prop-types": "off"
+			"react/prop-types": "off",
+			"unicorn/expiring-todo-comments": "off"
 		}
 	},
 	"prettier": "@vdemedes/prettier-config"

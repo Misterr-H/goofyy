@@ -1,15 +1,15 @@
-import React, { useState, useEffect } from 'react';
-import { Box, Text, useInput, useApp } from 'ink';
-import { MusicPlayerService } from './services/musicPlayer.js';
-import { MusicPlayerState } from './types.js';
-import { ProgressBar } from './components/ProgressBar.js';
-import { parseDuration } from './utils/time.js';
+import React, {useState, useEffect} from 'react';
+import {Box, Text, useInput, useApp} from 'ink';
+import {MusicPlayerService} from './services/musicPlayer.js';
+import {type MusicPlayerState} from './types.js';
+import {ProgressBar} from './components/ProgressBar.js';
+import {parseDuration} from './utils/time.js';
 
 type Props = {
-	initialQuery?: string;
+	readonly initialQuery?: string;
 };
 
-export default function App({ initialQuery }: Props) {
+export default function App({initialQuery}: Props) {
 	const [state, setState] = useState<MusicPlayerState>({
 		isPlaying: false,
 		currentSong: null,
@@ -17,12 +17,12 @@ export default function App({ initialQuery }: Props) {
 		isSearching: false,
 		progress: {
 			elapsed: 0,
-			total: 0
+			total: 0,
 		},
-		volume: 1
+		volume: 1,
 	});
 	const [input, setInput] = useState(initialQuery || '');
-	const { exit } = useApp();
+	const {exit} = useApp();
 	const musicPlayer = new MusicPlayerService();
 
 	useEffect(() => {
@@ -34,7 +34,11 @@ export default function App({ initialQuery }: Props) {
 	const handleSearch = async (query: string) => {
 		if (!query.trim()) return;
 
-		setState((prev: MusicPlayerState) => ({ ...prev, isSearching: true, error: null }));
+		setState((previous: MusicPlayerState) => ({
+			...previous,
+			isSearching: true,
+			error: null,
+		}));
 		try {
 			const metadataPromise = musicPlayer.fetchMetadata(query);
 			const streamPromise = Promise.resolve(musicPlayer.getStream(query));
@@ -42,34 +46,37 @@ export default function App({ initialQuery }: Props) {
 			const songInfo = await metadataPromise;
 			const totalDuration = parseDuration(songInfo.duration);
 
-			setState((prev: MusicPlayerState) => ({
-				...prev,
+			setState((previous: MusicPlayerState) => ({
+				...previous,
 				currentSong: songInfo,
 				isSearching: false,
 				progress: {
 					elapsed: 0,
-					total: totalDuration
-				}
+					total: totalDuration,
+				},
 			}));
 
 			musicPlayer.setProgressCallback((elapsed: number) => {
-				setState((prev: MusicPlayerState) => ({
-					...prev,
+				setState((previous: MusicPlayerState) => ({
+					...previous,
 					progress: {
-						...prev.progress,
-						elapsed
-					}
+						...previous.progress,
+						elapsed,
+					},
 				}));
 			});
 
 			const stream = await streamPromise;
 			await musicPlayer.playStream(songInfo, stream);
-			setState((prev: MusicPlayerState) => ({ ...prev, isPlaying: false }));
+			setState((previous: MusicPlayerState) => ({
+				...previous,
+				isPlaying: false,
+			}));
 		} catch (error) {
-			setState((prev: MusicPlayerState) => ({
-				...prev,
+			setState((previous: MusicPlayerState) => ({
+				...previous,
 				error: error instanceof Error ? error.message : 'An error occurred',
-				isSearching: false
+				isSearching: false,
 			}));
 		}
 	};
@@ -81,15 +88,31 @@ export default function App({ initialQuery }: Props) {
 			return;
 		}
 
-		if (input2 === '+') {
-			musicPlayer.increaseVolume();
-			setState(prev => ({...prev, volume: musicPlayer.getVolume()}))
-		} else if (input2 === '-') {
-			musicPlayer.decreaseVolume();
-			setState(prev => ({...prev, volume: musicPlayer.getVolume()}))
-		} else if (input2 === ' ') {
-			musicPlayer.togglePlayback();
-			setState(prev => ({...prev, isPlaying: musicPlayer.getIsPlaying()}))
+		switch (input2) {
+			case '+': {
+				musicPlayer.increaseVolume();
+				setState(previous => ({...previous, volume: musicPlayer.getVolume()}));
+
+				break;
+			}
+
+			case '-': {
+				musicPlayer.decreaseVolume();
+				setState(previous => ({...previous, volume: musicPlayer.getVolume()}));
+
+				break;
+			}
+
+			case ' ': {
+				musicPlayer.togglePlayback();
+				setState(previous => ({
+					...previous,
+					isPlaying: musicPlayer.getIsPlaying(),
+				}));
+
+				break;
+			}
+			// No default
 		}
 
 		if (state.isSearching) {
@@ -100,7 +123,7 @@ export default function App({ initialQuery }: Props) {
 			handleSearch(input);
 		} else if (input2.length > 0) {
 			setInput(r => r + input2);
-		} else if(key.backspace || key.delete) {
+		} else if (key.backspace || key.delete) {
 			setInput(r => r.slice(0, -1));
 		}
 	});
@@ -144,7 +167,9 @@ export default function App({ initialQuery }: Props) {
 							</Box>
 
 							<Box marginBottom={1}>
-								<Text>Volume: {'█'.repeat(state.volume * 10).padEnd(10, '░')}</Text>
+								<Text>
+									Volume: {'█'.repeat(state.volume * 10).padEnd(10, '░')}
+								</Text>
 							</Box>
 							<Text>Join us on discord: https://discord.gg/HNJgYuSUQ3</Text>
 							<Text>Press Ctrl+C to exit</Text>
