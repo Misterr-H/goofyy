@@ -306,7 +306,8 @@ app.get('/stream', async (req, res) => {
         '-ac', '2',
         '-probesize', '10M',
         '-analyzeduration', '10M',
-        '-max_muxing_queue_size', '1024',
+        '-max_muxing_queue_size', '2048',
+        '-bufsize', '2048k',
         '-'
     ]);
 
