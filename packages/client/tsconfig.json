@@ -1,7 +1,12 @@
 {
-	"extends": "@sindresorhus/tsconfig",
 	"compilerOptions": {
-		"outDir": "dist"
+		"outDir": "dist",
+		"jsx": "react",
+		"lib": ["ES2020", "DOM"],
+		"rootDir": "source",
+		"esModuleInterop": true,
+		"allowSyntheticDefaultImports": true,
+		"skipLibCheck": true
 	},
 	"include": ["source"]
 }
