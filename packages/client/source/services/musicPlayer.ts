@@ -2,7 +2,7 @@ import got from 'got';
 import Speaker from 'speaker';
 import { SongInfo } from '../types.js';
 import { baseUrl } from '../baseUrl.js';
-import * as Volume from 'pcm-volume';
+import Volume from 'pcm-volume';
 
 export class MusicPlayerService {
     private speaker: any;
@@ -10,11 +10,10 @@ export class MusicPlayerService {
     private progressInterval: NodeJS.Timeout | null = null;
     private startTime: number = 0;
     private duration: number = 0;
-    private currentSongInfo: SongInfo | null = null;
     private currentStream: NodeJS.ReadableStream | null = null;
     private _isPlaying: boolean = false;
     private progress: { elapsed: number; total: number } = { elapsed: 0, total: 0 };
-    private volume: Volume;
+    private volume: any;
 
     constructor() {
         this.volume = new Volume();
