@@ -150,7 +150,27 @@ export default function App({ initialQuery }: Props) {
 			}
 
 			if (key.return) {
-				
+				const selectedScreen = menuItems[selectedMenuIndex].screen;
+				if (selectedScreen === 'star_on_github_action') {
+					const url = 'https://github.com/Misterr-H/goofyy';
+					let command;
+					if (process.platform === 'darwin') {
+						command = `open ${url}`;
+					} else if (process.platform === 'win32') {
+						command = `start ${url}`;
+					} else {
+						command = `xdg-open ${url}`;
+					}
+					exec(command, (error) => {
+						if (error) {
+							console.error(`Failed to open URL: ${error.message}`);
+						}
+					});
+					setCurrentScreen('music'); // Go back to music screen after opening URL
+				} else {
+					setCurrentScreen(selectedScreen as Screen);
+				}
+				return;
 			}
 		}
 
@@ -249,11 +269,7 @@ export default function App({ initialQuery }: Props) {
 				</Box>
 			)}
 
-			{currentScreen === 'star_on_github' && (
-				<Box>
-					<Text>Star on github is currently under development.</Text>
-				</Box>
-			)}
+			
 
 			{currentScreen === 'music' && songQueue.length > 0 && (
 				<Box flexDirection="column" marginTop={1}>
