@@ -300,6 +300,9 @@ app.get('/stream', async (req, res) => {
         '-acodec', 'pcm_s16le',
         '-ar', '44100',
         '-ac', '2',
+        '-probesize', '10M',
+        '-analyzeduration', '10M',
+        '-max_muxing_queue_size', '1024',
         '-'
     ]);
 

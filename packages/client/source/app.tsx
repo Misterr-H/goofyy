@@ -52,6 +52,8 @@ export default function App({ initialQuery }: Props) {
 	const handleSearch = async (query: string) => {
 		if (!query.trim()) return;
 
+		musicPlayer.cleanup(); // Ensure any previous playback is stopped
+
 		setState((prev: MusicPlayerState) => ({ ...prev, isSearching: true, error: null }));
 		try {
 			// Start both requests in parallel
