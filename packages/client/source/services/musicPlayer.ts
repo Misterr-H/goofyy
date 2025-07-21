@@ -13,6 +13,7 @@ export class MusicPlayerService {
     private currentSongInfo: SongInfo | null = null;
     private currentStream: NodeJS.ReadableStream | null = null;
     private _isPlaying: boolean = false;
+    private progress: { elapsed: number; total: number } = { elapsed: 0, total: 0 };
     private volume: Volume;
 
     constructor() {
@@ -72,6 +73,7 @@ export class MusicPlayerService {
             this.currentStream = stream;
             this.startTime = Date.now();
             this.duration = this.parseDuration(songInfo.duration);
+            this.progress = { elapsed: 0, total: this.duration };
 
             this.speaker = new Speaker({
                 channels: 2,
@@ -95,6 +97,7 @@ export class MusicPlayerService {
             if (this.onProgressUpdate) {
                 this.progressInterval = setInterval(() => {
                     const elapsed = (Date.now() - this.startTime) / 1000;
+                    this.progress.elapsed = elapsed;
                     if (this.onProgressUpdate) {
                         this.onProgressUpdate(elapsed);
                     }
@@ -123,6 +126,7 @@ export class MusicPlayerService {
             this.currentStream = null;
         }
         this._isPlaying = false;
+        this.progress = { elapsed: 0, total: 0 };
     }
 
     private _isPaused: boolean = false;
