@@ -2,7 +2,7 @@ import got from 'got';
 import Speaker from 'speaker';
 import Volume from 'pcm-volume';
 import {type SongInfo} from '../types.js';
-import {baseUrl} from '../baseUrl.js';
+import {baseUrl} from '../base-url.js';
 import {parseDuration, formatDuration} from '../utils/time.js';
 
 export class MusicPlayerService {
@@ -18,6 +18,7 @@ export class MusicPlayerService {
 
 	constructor() {
 		this.volume = new Volume();
+		this.speaker = new Speaker();
 	}
 
 	async checkDependencies(): Promise<string[]> {
@@ -28,7 +29,7 @@ export class MusicPlayerService {
 		const metadataUrl = `${baseUrl}/metadata?q=${encodeURIComponent(query)}`;
 		const streamUrl = `${baseUrl}/stream?q=${encodeURIComponent(query)}`;
 		const response = await got(metadataUrl, {responseType: 'json'});
-		const data = response.body as any;
+		const data = response.body;
 		return {
 			title: data.title || query,
 			duration:

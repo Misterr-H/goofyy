@@ -2,15 +2,16 @@ export const parseDuration = (duration: string): number => {
 	const parts = duration.split(':');
 	if (parts.length === 2) {
 		return (
-			Number.parseInt(parts[0] || '0') * 60 + Number.parseInt(parts[1] || '0')
+			Number.parseInt(parts[0] || '0', 10) * 60 +
+			Number.parseInt(parts[1] || '0', 10)
 		);
 	}
 
 	if (parts.length === 3) {
 		return (
-			Number.parseInt(parts[0] || '0') * 3600 +
-			Number.parseInt(parts[1] || '0') * 60 +
-			Number.parseInt(parts[2] || '0')
+			Number.parseInt(parts[0] || '0', 10) * 3600 +
+			Number.parseInt(parts[1] || '0', 10) * 60 +
+			Number.parseInt(parts[2] || '0', 10)
 		);
 	}
 

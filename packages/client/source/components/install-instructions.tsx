@@ -7,10 +7,10 @@ type InstallInstructionsProps = {
 	readonly query?: string;
 };
 
-export const InstallInstructions: React.FC<InstallInstructionsProps> = ({
+export function InstallInstructions({
 	missing,
 	query,
-}) => {
+}: InstallInstructionsProps) {
 	const platform = os.platform();
 	const command = query ? `goofyy "${query}"` : 'goofyy';
 
@@ -62,4 +62,4 @@ export const InstallInstructions: React.FC<InstallInstructionsProps> = ({
 			<Text> </Text>
 		</Box>
 	);
-};
+}

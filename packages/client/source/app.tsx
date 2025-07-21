@@ -1,8 +1,8 @@
 import React, {useState, useEffect} from 'react';
 import {Box, Text, useInput, useApp} from 'ink';
-import {MusicPlayerService} from './services/musicPlayer.js';
+import {MusicPlayerService} from './services/music-player.js';
 import {type MusicPlayerState} from './types.js';
-import {ProgressBar} from './components/ProgressBar.js';
+import {ProgressBar} from './components/progress-bar.js';
 import {parseDuration} from './utils/time.js';
 
 type Props = {
@@ -29,7 +29,7 @@ export default function App({initialQuery}: Props) {
 		if (initialQuery) {
 			handleSearch(initialQuery);
 		}
-	}, []);
+	}, [handleSearch, initialQuery]);
 
 	const handleSearch = async (query: string) => {
 		if (!query.trim()) return;

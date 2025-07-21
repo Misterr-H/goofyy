@@ -1,5 +1,5 @@
 import test from 'ava';
-import {MusicPlayerService} from './musicPlayer.js';
+import {MusicPlayerService} from './music-player.js';
 
 test.beforeEach(t => {
 	t.context.player = new MusicPlayerService();

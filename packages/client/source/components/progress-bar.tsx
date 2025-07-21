@@ -8,11 +8,7 @@ const formatTime = (seconds: number): string => {
 	return `${minutes}:${remainingSeconds.toString().padStart(2, '0')}`;
 };
 
-export const ProgressBar: React.FC<ProgressBarProps> = ({
-	elapsed,
-	total,
-	width,
-}) => {
+export function ProgressBar({elapsed, total, width}: ProgressBarProps) {
 	const progress = Math.min((elapsed / total) * width, width);
 	const progressBar = '█'.repeat(progress) + '░'.repeat(width - progress);
 
@@ -23,4 +19,4 @@ export const ProgressBar: React.FC<ProgressBarProps> = ({
 			<Text>{formatTime(total)}</Text>
 		</Box>
 	);
-};
+}
