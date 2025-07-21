@@ -10,7 +10,7 @@ type Props = {
 	initialQuery?: string;
 };
 
-type Screen = 'home' | 'music' | 'playlists' | 'trending' | 'settings' | 'about' | 'star_on_github_action';
+type Screen = 'home' | 'music' | 'playlists' | 'trending' | 'about' | 'star_on_github_action';
 
 export default function App({ initialQuery }: Props) {
 	const [state, setState] = useState<MusicPlayerState>({
@@ -36,7 +36,7 @@ export default function App({ initialQuery }: Props) {
 		{ label: 'Music Player', screen: 'music' },
 		{ label: 'Playlists', screen: 'playlists' },
 		{ label: 'Trending song', screen: 'trending' },
-		{ label: 'Settings', screen: 'settings' },
+		
 		{ label: 'About', screen: 'about' },
 		{ label: 'Star on github', screen: 'star_on_github_action' }
 	];
@@ -245,11 +245,7 @@ export default function App({ initialQuery }: Props) {
 				)
 			)}
 
-			{currentScreen === 'settings' && (
-				<Box>
-					<Text>Settings will go here.</Text>
-				</Box>
-			)}
+			
 
 			{currentScreen === 'about' && (
 				<Box>
