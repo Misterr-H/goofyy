@@ -70,8 +70,9 @@ export class MusicPlayerService {
             this.speaker = new Speaker({
                 channels: 2,
                 bitDepth: 16,
-                sampleRate: 44100
-            });
+                sampleRate: 44100,
+                bufferSize: 8192 // Increased buffer size to mitigate underflows
+            } as any);
 
             stream.on('error', (err: Error) => {
                 this.cleanup();
