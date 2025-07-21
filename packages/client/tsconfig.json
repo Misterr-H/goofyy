@@ -6,7 +6,8 @@
 		"rootDir": "source",
 		"esModuleInterop": true,
 		"allowSyntheticDefaultImports": true,
-		"skipLibCheck": true
+		"skipLibCheck": true,
+		"module": "NodeNext"
 	},
 	"include": ["source"]
 }
