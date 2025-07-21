@@ -153,6 +153,10 @@ export class MusicPlayerService {
         const currentVolume = this.volume.volume;
         this.volume.setVolume(Math.max(currentVolume - amount, 0));
     }
+
+    getVolume(): number {
+        return this.volume.volume;
+    }
 }
 
 export const musicPlayerService = new MusicPlayerService(); 
