@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { Box, Text, useInput, useApp } from 'ink';
 import { MusicPlayerService } from './services/musicPlayer.js';
+import { exec } from 'child_process';
 import { MusicPlayerState, SongInfo } from './types.js';
 import { ProgressBar } from './components/ProgressBar.js';
 import { Menu } from './components/Menu.js';
@@ -9,7 +10,7 @@ type Props = {
 	initialQuery?: string;
 };
 
-type Screen = 'home' | 'music' | 'playlists' | 'trending' | 'settings' | 'about';
+type Screen = 'home' | 'music' | 'playlists' | 'trending' | 'settings' | 'about' | 'star_on_github_action';
 
 export default function App({ initialQuery }: Props) {
 	const [state, setState] = useState<MusicPlayerState>({
@@ -36,7 +37,8 @@ export default function App({ initialQuery }: Props) {
 		{ label: 'Playlists', screen: 'playlists' },
 		{ label: 'Trending song', screen: 'trending' },
 		{ label: 'Settings', screen: 'settings' },
-		{ label: 'About', screen: 'about' }
+		{ label: 'About', screen: 'about' },
+		{ label: 'Star on github', screen: 'star_on_github_action' }
 	];
 
 	useEffect(() => {
@@ -148,8 +150,7 @@ export default function App({ initialQuery }: Props) {
 			}
 
 			if (key.return) {
-				setCurrentScreen(menuItems[selectedMenuIndex].screen as Screen);
-				return;
+				
 			}
 		}
 
@@ -245,6 +246,12 @@ export default function App({ initialQuery }: Props) {
 			{currentScreen === 'trending' && (
 				<Box>
 					<Text>Trending songs are currently under development.</Text>
+				</Box>
+			)}
+
+			{currentScreen === 'star_on_github' && (
+				<Box>
+					<Text>Star on github is currently under development.</Text>
 				</Box>
 			)}
 
