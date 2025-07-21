@@ -3,6 +3,7 @@ import { Box, Text, useInput, useApp } from 'ink';
 import { MusicPlayerService } from './services/musicPlayer.js';
 import { MusicPlayerState } from './types.js';
 import { ProgressBar } from './components/ProgressBar.js';
+import { parseDuration } from './utils/time.js';
 
 type Props = {
 	initialQuery?: string;
@@ -73,16 +74,6 @@ export default function App({ initialQuery }: Props) {
 		}
 	};
 
-	const parseDuration = (duration: string): number => {
-		const parts = duration.split(':');
-		if (parts.length === 2) {
-			return parseInt(parts[0] || '0') * 60 + parseInt(parts[1] || '0');
-		} else if (parts.length === 3) {
-			return parseInt(parts[0] || '0') * 3600 + parseInt(parts[1] || '0') * 60 + parseInt(parts[2] || '0');
-		}
-		return 0;
-	};
-
 	useInput((input2, key) => {
 		if (key.escape) {
 			musicPlayer.cleanup();
@@ -151,6 +142,7 @@ export default function App({ initialQuery }: Props) {
 									width={40}
 								/>
 							</Box>
+
 							<Box marginBottom={1}>
 								<Text>Volume: {'█'.repeat(state.volume * 10).padEnd(10, '░')}</Text>
 							</Box>
