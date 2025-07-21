@@ -54,9 +54,11 @@ async function getSongInfo(query: string) {
         if (cached) {
             console.log('Redis cache hit for:', query);
             return JSON.parse(cached);
+        } else {
+            console.log('Redis cache miss for:', query);
         }
     } catch (err) {
-        console.error('Redis cache error:', err);
+        console.error('Redis cache retrieval error for', query, ':', err);
     }
 
     // Monitor cache size and clean if needed
@@ -72,14 +74,14 @@ async function getSongInfo(query: string) {
     return new Promise((resolve, reject) => {
         const ytdlp = spawn('yt-dlp', [
             '-j', '--no-playlist', '--skip-download', '--no-warnings', '--no-check-certificates', '--max-downloads', '1', '--playlist-items', '1', '--extractor-args', 'youtube:player_client=android', `ytsearch1:${query}`
-        ]);
+        ], { timeout: 15000 }); // Add timeout of 15 seconds
         let json = '';
-        console.time('getSongInfo');
+        // console.time('getSongInfo'); // Removed to avoid duplicate label warning
         ytdlp.stdout.on('data', (data) => {
             json += data.toString();
         });
         ytdlp.on('close', async () => {
-            console.timeEnd('getSongInfo');
+            // console.timeEnd('getSongInfo'); // Removed to avoid no such label warning
             try {
                 const info = JSON.parse(json);
                 const result = {
@@ -98,10 +100,15 @@ async function getSongInfo(query: string) {
                 
                 resolve(result);
             } catch (e) {
+                console.error('Error parsing yt-dlp JSON for getSongInfo:', json, e);
                 reject(e);
             }
         });
         ytdlp.on('error', reject);
+        ytdlp.on('timeout', () => {
+            ytdlp.kill();
+            reject(new Error(`yt-dlp timeout for getSongInfo: ${query}`));
+        });
     });
 }
 
@@ -117,9 +124,11 @@ async function getVideoUrl(query: string) {
         if (cached) {
             console.log('Stream cache hit for:', query);
             return cached;
+        } else {
+            console.log('Stream cache miss for:', query);
         }
     } catch (err) {
-        console.error('Stream cache error:', err);
+        console.error('Stream cache retrieval error for', query, ':', err);
     }
 
     return new Promise((resolve, reject) => {
@@ -133,17 +142,17 @@ async function getVideoUrl(query: string) {
             '--playlist-items', '1',
             '--extractor-args', 'youtube:player_client=android',
             `ytsearch1:${query}`
-        ]);
+        ], { timeout: 15000 }); // Add timeout of 15 seconds
         
         let videoUrl = '';
-        console.time('getVideoUrl');
+        // console.time('getVideoUrl'); // Removed to avoid duplicate label warning
         
         ytdlp.stdout.on('data', (data) => {
             videoUrl += data.toString();
         });
         
         ytdlp.on('close', async () => {
-            console.timeEnd('getVideoUrl');
+            // console.timeEnd('getVideoUrl'); // Removed to avoid no such label warning
             const url = videoUrl.trim();
             
             // Cache the URL
@@ -157,7 +166,14 @@ async function getVideoUrl(query: string) {
             resolve(url);
         });
         
-        ytdlp.on('error', reject);
+        ytdlp.on('error', (err) => {
+            console.error('Error fetching video URL:', videoUrl, err);
+            reject(err);
+        });
+        ytdlp.on('timeout', () => {
+            ytdlp.kill();
+            reject(new Error(`yt-dlp timeout for getVideoUrl: ${query}`));
+        });
     });
 }
 
@@ -300,6 +316,10 @@ app.get('/stream', async (req, res) => {
         '-acodec', 'pcm_s16le',
         '-ar', '44100',
         '-ac', '2',
+        '-probesize', '10M',
+        '-analyzeduration', '10M',
+        '-max_muxing_queue_size', '2048',
+        '-bufsize', '2048k',
         '-'
     ]);
 
@@ -319,9 +339,21 @@ app.get('/stream', async (req, res) => {
         } else {
             res.end();
         }
+        ffmpeg.kill(); // Ensure ffmpeg is killed on error
+    });
+
+    ffmpeg.on('exit', (code, signal) => {
+        console.log(`ffmpeg exited with code ${code} and signal ${signal}`);
+        if (signal !== 'SIGINT' && code !== 0) { // Log unexpected exits
+            console.error('ffmpeg exited unexpectedly!');
+        }
+        if (!ffmpeg.killed) {
+            ffmpeg.kill(); // Ensure process is truly dead
+        }
     });
 
     res.on('close', () => {
+        console.log('Client disconnected, killing ffmpeg...');
         ffmpeg.kill('SIGINT');
     });
 });

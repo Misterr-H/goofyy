@@ -7,60 +7,14 @@ YELLOW='\033[1;33m'
 BLUE='\033[0;34m'
 NC='\033[0m' # No Color
 
-echo -e "${BLUE}🎵 Goofy Music Server - Development Setup${NC}"
+echo -e "${BLUE}🎵 Goofyy Development Setup${NC}"
 echo "=========================================="
 
-# Check if Docker is running
-if ! docker info > /dev/null 2>&1; then
-    echo -e "${RED}❌ Docker is not running. Please start Docker and try again.${NC}"
-    exit 1
-fi
-
-# Check if Redis container is already running
-if docker ps --format "table {{.Names}}" | grep -q "goofy-redis"; then
-    echo -e "${YELLOW}⚠️  Redis container 'goofy-redis' is already running${NC}"
-else
-    echo -e "${BLUE}🐳 Starting Redis container...${NC}"
-    
-    # Stop any existing container with the same name
-    docker stop goofy-redis > /dev/null 2>&1
-    docker rm goofy-redis > /dev/null 2>&1
-    
-    # Start Redis container with memory limits
-    docker run -d \
-        --name goofy-redis \
-        -p 6379:6379 \
-        --memory=600m \
-        --memory-reservation=100m \
-        redis:7-alpine \
-        redis-server \
-        --appendonly yes \
-        --maxmemory 512mb \
-        --maxmemory-policy allkeys-lru \
-        --save 900 1 \
-        --save 300 10 \
-        --save 60 10000
-    
-    if [ $? -eq 0 ]; then
-        echo -e "${GREEN}✅ Redis container started successfully${NC}"
-    else
-        echo -e "${RED}❌ Failed to start Redis container${NC}"
-        exit 1
-    fi
-fi
-
-# Wait a moment for Redis to be ready
-echo -e "${BLUE}⏳ Waiting for Redis to be ready...${NC}"
-sleep 2
-
-# Test Redis connection
-if docker exec goofy-redis redis-cli ping > /dev/null 2>&1; then
-    echo -e "${GREEN}✅ Redis is ready and responding${NC}"
-else
-    echo -e "${RED}❌ Redis is not responding. Please check the container logs.${NC}"
-    echo "You can check logs with: docker logs goofy-redis"
-    exit 1
-fi
+# --- Redis Dependency ---
+echo -e "${YELLOW}⚠️  Redis is a required dependency for the backend. Please ensure it is running locally.${NC}"
+echo -e "   If not installed, you can typically install it via your package manager (e.g., 'brew install redis' on macOS, 'sudo apt-get install redis-server' on Ubuntu).${NC}"
+echo -e "   Start Redis before running this script (e.g., 'redis-server' in a new terminal).${NC}"
+echo ""
 
 # Check if .env file exists in backend
 if [ ! -f "packages/backend/.env" ]; then
@@ -80,29 +34,38 @@ if [ ! -f "packages/backend/.env" ]; then
     fi
 fi
 
-# Navigate to backend directory
-cd packages/backend
-
-# Check if node_modules exists
-if [ ! -d "node_modules" ]; then
-    echo -e "${BLUE}📦 Installing dependencies...${NC}"
-    npm install
+# Install backend dependencies if not present
+if [ ! -d "packages/backend/node_modules" ]; then
+    echo -e "${BLUE}📦 Installing backend dependencies...${NC}"
+    (cd packages/backend && npm install)
     if [ $? -ne 0 ]; then
-        echo -e "${RED}❌ Failed to install dependencies${NC}"
+        echo -e "${RED}❌ Failed to install backend dependencies${NC}"
+        exit 1
+    fi
+fi
+
+# Install client dependencies if not present
+if [ ! -d "packages/client/node_modules" ]; then
+    echo -e "${BLUE}📦 Installing client dependencies...${NC}"
+    (cd packages/client && npm install)
+    if [ $? -ne 0 ]; then
+        echo -e "${RED}❌ Failed to install client dependencies${NC}"
         exit 1
     fi
 fi
 
 echo -e "${GREEN}🚀 Starting backend development server...${NC}"
-echo -e "${BLUE}📍 Server will be available at: http://localhost:3000${NC}"
-echo -e "${BLUE}📍 Redis is available at: localhost:6379${NC}"
-echo ""
-echo -e "${YELLOW}💡 Useful commands:${NC}"
-echo "  - Stop Redis: docker stop goofy-redis"
-echo "  - View Redis logs: docker logs goofy-redis"
-echo "  - Redis CLI: docker exec -it goofy-redis redis-cli"
-echo "  - Stop server: Ctrl+C"
-echo ""
+(cd packages/backend && npm run dev) & # Run backend in background
+BACKEND_PID=$!
 
-# Start the backend development server
-npm run dev 
+echo -e "${GREEN}🚀 Starting client development server...${NC}"
+(cd packages/client && npm run dev) & # Run client in background
+CLIENT_PID=$!
+
+echo -e "${BLUE}📍 Backend server will be available at: http://localhost:3000${NC}"
+echo -e "💡 To stop both servers, press Ctrl+C.${NC}"
+
+# Trap Ctrl+C to kill background processes
+trap "echo -e '\n${YELLOW}Shutting down servers...${NC}'; kill $BACKEND_PID $CLIENT_PID; wait $BACKEND_PID $CLIENT_PID 2>/dev/null; echo -e '${GREEN}Servers stopped.${NC}'; exit 0" INT
+
+wait # Wait for all background processes to finish
