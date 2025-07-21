@@ -39,8 +39,9 @@ export function useMusicPlayer(initialQuery?: string) {
         if (!query.trim()) return;
 
         musicPlayer.cleanup(); // Ensure any previous playback is stopped
+		await new Promise(resolve => setTimeout(resolve, 100)); // Small delay for resource cleanup
 
-        setState((prev: MusicPlayerState) => ({ ...prev, isSearching: true, error: null }));
+		setState((prev: MusicPlayerState) => ({ ...prev, isSearching: true, error: null }));
         try {
             // Start both requests in parallel
             const metadataPromise = musicPlayer.fetchMetadata(query);
