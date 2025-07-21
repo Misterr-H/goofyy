@@ -88,6 +88,7 @@ export default function App({ initialQuery }: Props) {
 			const stream = await streamPromise;
 			await musicPlayer.playStream(songInfo, stream);
 			setState((prev: MusicPlayerState) => ({ ...prev, isPlaying: musicPlayer.getIsPlaying() }));
+			setInput(''); // Clear input after successful search
 		} catch (error) {
 			setState((prev: MusicPlayerState) => ({
 				...prev,
