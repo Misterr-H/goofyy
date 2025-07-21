@@ -135,12 +135,12 @@ export default function App({ initialQuery }: Props) {
 
 		// Handle menu navigation if currentScreen is not music player or if search is not active
 		if (currentScreen !== 'music' || !state.isSearching) {
-			if (key.upArrow) {
+			if (key.leftArrow) {
 				setSelectedMenuIndex(prev => (prev === 0 ? menuItems.length - 1 : prev - 1));
 				return;
 			}
 
-			if (key.downArrow) {
+			if (key.rightArrow) {
 				setSelectedMenuIndex(prev => (prev === menuItems.length - 1 ? 0 : prev + 1));
 				return;
 			}
