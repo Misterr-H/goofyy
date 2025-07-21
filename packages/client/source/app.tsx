@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { Box, Text, useInput, useApp } from 'ink';
 import { MusicPlayerService } from './services/musicPlayer.js';
-import { exec } from 'child_process';
+
 import { MusicPlayerState, SongInfo } from './types.js';
 import { ProgressBar } from './components/ProgressBar.js';
 import { Menu } from './components/Menu.js';
