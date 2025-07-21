@@ -74,12 +74,12 @@ async function getSongInfo(query: string) {
             '-j', '--no-playlist', '--skip-download', '--no-warnings', '--no-check-certificates', '--max-downloads', '1', '--playlist-items', '1', '--extractor-args', 'youtube:player_client=android', `ytsearch1:${query}`
         ]);
         let json = '';
-        console.time('getSongInfo');
+        // console.time('getSongInfo'); // Removed to avoid duplicate label warning
         ytdlp.stdout.on('data', (data) => {
             json += data.toString();
         });
         ytdlp.on('close', async () => {
-            console.timeEnd('getSongInfo');
+            // console.timeEnd('getSongInfo'); // Removed to avoid no such label warning
             try {
                 const info = JSON.parse(json);
                 const result = {
@@ -98,6 +98,7 @@ async function getSongInfo(query: string) {
                 
                 resolve(result);
             } catch (e) {
+                console.error('Error parsing yt-dlp JSON for getSongInfo:', json, e);
                 reject(e);
             }
         });
@@ -157,7 +158,10 @@ async function getVideoUrl(query: string) {
             resolve(url);
         });
         
-        ytdlp.on('error', reject);
+        ytdlp.on('error', (err) => {
+            console.error('Error fetching video URL:', videoUrl, err);
+            reject(err);
+        });
     });
 }
 
