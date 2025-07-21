@@ -14,7 +14,7 @@ export class MusicPlayerService {
     private currentStream: NodeJS.ReadableStream | null = null;
     private _isPlaying: boolean = false;
     private progress: { elapsed: number; total: number } = { elapsed: 0, total: 0 };
-    private volume: any;
+    private volume: any; // Changed to any for now due to typing issues
 
     constructor() {
         this.volume = new Volume();
@@ -156,4 +156,4 @@ export class MusicPlayerService {
     }
 }
 
-export const musicPlayerService = new MusicPlayerService(); 
+export const musicPlayerService = new MusicPlayerService();
