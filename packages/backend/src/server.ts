@@ -161,6 +161,17 @@ async function getVideoUrl(query: string) {
     });
 }
 
+// Helper to sanitize header values for HTTP
+function sanitizeHeaderValue(value: string | number | undefined): string {
+    if (value === undefined || value === null) return '';
+    let str = String(value);
+    // Remove all non-printable ASCII except space
+    str = str.replace(/[^\x20-\x7E]+/g, ' ').trim();
+    // Remove double quotes (not allowed in header values)
+    str = str.replace(/"/g, '');
+    return str;
+}
+
 app.get('/metadata', async (req, res) => {
     const query = req.query.q as string;
     client.capture({
@@ -288,10 +299,22 @@ app.get('/stream', async (req, res) => {
         })
     ]);
 
-    // Set headers immediately
-    if (info.title) res.set('X-Song-Title', info.title);
-    if (info.duration) res.set('X-Song-Duration', info.duration.toString());
-    if (info.artist) res.set('X-Song-Artist', info.artist);
+    // Set headers immediately (only if sanitized value is non-empty)
+    const sanitizedTitle = sanitizeHeaderValue(info.title);
+    const sanitizedDuration = sanitizeHeaderValue(info.duration);
+    const sanitizedArtist = sanitizeHeaderValue(info.artist);
+    if (sanitizedTitle) {
+        console.debug('Setting X-Song-Title header:', sanitizedTitle);
+        res.set('X-Song-Title', sanitizedTitle);
+    }
+    if (sanitizedDuration) {
+        console.debug('Setting X-Song-Duration header:', sanitizedDuration);
+        res.set('X-Song-Duration', sanitizedDuration);
+    }
+    if (sanitizedArtist) {
+        console.debug('Setting X-Song-Artist header:', sanitizedArtist);
+        res.set('X-Song-Artist', sanitizedArtist);
+    }
 
     // Use WAV format for reliable streaming
     const ffmpeg = spawn('ffmpeg', [
