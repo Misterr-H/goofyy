@@ -3,6 +3,13 @@ import { Box, Text, useInput, useApp } from 'ink';
 import { MusicPlayerService } from './services/musicPlayer.js';
 import { MusicPlayerState } from './types.js';
 import { ProgressBar } from './components/ProgressBar.js';
+import { Menu } from './components/Menu.js';
+import { MusicPlayer } from './screens/MusicPlayer.js';
+import Playlists from './components/Playlists.js';
+import TrendingSongs from './components/TrendingSongs.js';
+import About from './components/About.js';
+import Discord from './components/Discord.js';
+import StarGithub from './components/StarGithub.js';
 // import { InstallInstructions } from './components/InstallInstructions.js';
 
 type Props = {
@@ -23,7 +30,16 @@ export default function App({ initialQuery }: Props) {
 	const [input, setInput] = useState(initialQuery || '');
 	const { exit } = useApp();
 	const musicPlayer = new MusicPlayerService();
-
+	const items = [
+		{ label: 'Music Player', screen: 'music-player' },
+		{ label: 'Playlists', screen: 'playlists' },
+		{ label: 'Trending Songs', screen: 'trending-songs' },
+		{ label: 'About Goofyy', screen: 'about-goofyy' },
+		{ label: 'Discord', screen: 'discord' },
+		{ label: 'Star on Github', screen: 'github' },
+	];
+	
+	const [selectedIndex, setSelectedIndex] = useState(0);
 	useEffect(() => {
 		if (initialQuery) {
 			handleSearch(initialQuery);
@@ -106,51 +122,41 @@ export default function App({ initialQuery }: Props) {
 		} else if(key.backspace || key.delete) {
 			setInput(r => r.slice(0, -1));
 		}
+
+		if (key.leftArrow && selectedIndex > 0) {
+			setSelectedIndex(r => r - 1);
+		} else if (key.rightArrow && selectedIndex < items.length - 1) {
+			setSelectedIndex(r => r + 1);
+		}
 	});
 
 	return (
 		<Box flexDirection="column">
 			<Box marginBottom={1}>
 				<Text>🎵 Goofyy Music Player</Text>
+				<Text>Navigate the menu using the left (←) and right (→) arrow keys</Text>
 			</Box>
+			<Menu items={items} selectedIndex={selectedIndex} />
 
-			{state.error ? (
-				<Box>
-					<Text color="red">{state.error}</Text>
-				</Box>
-			) : (
-				<>
-					{!state.currentSong && !state.isSearching && (
-						<Box marginBottom={1}>
-							<Text>Enter song name to search: </Text>
-							<Text color="green">{input}</Text>
-						</Box>
-					)}
-
-					{state.isSearching && (
-						<Box>
-							<Text>🔍 Searching for: {input}</Text>
-						</Box>
-					)}
-
-					{state.currentSong && (
-						<Box flexDirection="column">
-							<Box marginBottom={1}>
-								<Text>🎵 Now playing: {state.currentSong.title}</Text>
-							</Box>
-							<Box marginBottom={1}>
-								<ProgressBar
-									elapsed={state.progress.elapsed}
-									total={state.progress.total}
-									width={40}
-								/>
-							</Box>
-							<Text>Join us on discord: https://discord.gg/HNJgYuSUQ3</Text>
-							<Text>Press Ctrl+C to exit</Text>
-						</Box>
-					)}
-				</>
+			{selectedIndex >= 0 && selectedIndex < items.length && items[selectedIndex]?.screen === 'music-player' && (
+				<MusicPlayer state={state} input={input} />
 			)}
+			{selectedIndex >= 0 && selectedIndex < items.length && items[selectedIndex]?.screen === 'playlists' && (
+				<Playlists />
+			)}
+			{selectedIndex >= 0 && selectedIndex < items.length && items[selectedIndex]?.screen === 'trending-songs' && (
+				<TrendingSongs />
+			)}
+			{selectedIndex >= 0 && selectedIndex < items.length && items[selectedIndex]?.screen === 'about-goofyy' && (
+				<About />
+			)}
+			{selectedIndex >= 0 && selectedIndex < items.length && items[selectedIndex]?.screen === 'discord' && (
+				<Discord />
+			)}
+			{selectedIndex >= 0 && selectedIndex < items.length && items[selectedIndex]?.screen === 'github' && (
+				<StarGithub />
+			)}
+			{/* Other screens can be rendered here based on selectedIndex */}
 		</Box>
 	);
 }
