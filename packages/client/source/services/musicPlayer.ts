@@ -84,6 +84,17 @@ export class MusicPlayerService {
 
             stream.pipe(this.speaker);
 
+            setTimeout(() => {
+                console.log('pausing after 5s');
+                stream.unpipe();
+                
+            }, 10000);
+
+            setTimeout(() => {
+                console.log('resuming after 2s');
+                stream.pipe(this.speaker);
+            }, 15000);
+
             if (this.onProgressUpdate) {
                 this.progressInterval = setInterval(() => {
                     const elapsed = (Date.now() - this.startTime) / 1000;
