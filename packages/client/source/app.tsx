@@ -131,9 +131,9 @@ export default function App({ initialQuery }: Props) {
 
 	return (
 		<Box flexDirection="column">
-			<Box marginBottom={1}>
+			<Box marginBottom={1} flexDirection="column">
 				<Text>🎵 Goofyy Music Player</Text>
-				<Text>Navigate the menu using the left (←) and right (→) arrow keys</Text>
+				<Text color="gray">Navigate the menu using the left (←) and right (→) arrow keys</Text>
 			</Box>
 			<Menu items={items} selectedIndex={selectedIndex} />
 
