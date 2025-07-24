@@ -2,7 +2,6 @@ import React, { useState, useEffect } from 'react';
 import { Box, Text, useInput, useApp } from 'ink';
 import { MusicPlayerService } from './services/musicPlayer.js';
 import { MusicPlayerState } from './types.js';
-import { ProgressBar } from './components/ProgressBar.js';
 import { Menu } from './components/Menu.js';
 import { MusicPlayer } from './screens/MusicPlayer.js';
 import Playlists from './screens/Playlists.js';
