@@ -5,11 +5,11 @@ import { MusicPlayerState } from './types.js';
 import { ProgressBar } from './components/ProgressBar.js';
 import { Menu } from './components/Menu.js';
 import { MusicPlayer } from './screens/MusicPlayer.js';
-import Playlists from './components/Playlists.js';
-import TrendingSongs from './components/TrendingSongs.js';
-import About from './components/About.js';
-import Discord from './components/Discord.js';
-import StarGithub from './components/StarGithub.js';
+import Playlists from './screens/Playlists.js';
+import TrendingSongs from './screens/TrendingSongs.js';
+import About from './screens/About.js';
+import Discord from './screens/Discord.js';
+import StarGithub from './screens/StarGithub.js';
 // import { InstallInstructions } from './components/InstallInstructions.js';
 
 type Props = {
