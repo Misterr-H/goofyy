@@ -10,6 +10,9 @@ export class MusicPlayerService {
     private startTime: number = 0;
     // @ts-ignore
     private duration: number = 0;
+    private paused: boolean = false;
+    private currentStream: NodeJS.ReadableStream | null = null;
+    private pausedElapsed: number = 0;
 
     async checkDependencies(): Promise<string[]> {
         return [];
@@ -65,6 +68,9 @@ export class MusicPlayerService {
         return new Promise((resolve, reject) => {
             this.startTime = Date.now();
             this.duration = this.parseDuration(songInfo.duration);
+            this.paused = false;
+            this.currentStream = stream;
+            this.pausedElapsed = 0;
 
             this.speaker = new Speaker({
                 channels: 2,
@@ -93,6 +99,40 @@ export class MusicPlayerService {
                 }, 1000);
             }
         });
+    }
+
+    pause() {
+        if (this.currentStream && !this.paused) {
+            this.currentStream.unpipe();
+            this.paused = true;
+            // Store elapsed time at pause
+            this.pausedElapsed = (Date.now() - this.startTime) / 1000;
+            if (this.progressInterval) {
+                clearInterval(this.progressInterval);
+                this.progressInterval = null;
+            }
+        }
+    }
+
+    resume() {
+        if (this.currentStream && this.paused && this.speaker) {
+            this.currentStream.pipe(this.speaker);
+            this.paused = false;
+            // Adjust startTime so elapsed calculation resumes correctly
+            this.startTime = Date.now() - this.pausedElapsed * 1000;
+            if (this.onProgressUpdate) {
+                this.progressInterval = setInterval(() => {
+                    const elapsed = (Date.now() - this.startTime) / 1000;
+                    if (this.onProgressUpdate) {
+                        this.onProgressUpdate(elapsed);
+                    }
+                }, 1000);
+            }
+        }
+    }
+
+    isPaused() {
+        return this.paused;
     }
 
     // Keep for backward compatibility

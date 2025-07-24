@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { Box, Text, useInput, useApp } from 'ink';
 import { MusicPlayerService } from './services/musicPlayer.js';
 import { MusicPlayerState } from './types.js';
@@ -18,6 +18,7 @@ type Props = {
 export default function App({ initialQuery }: Props) {
 	const [state, setState] = useState<MusicPlayerState>({
 		isPlaying: false,
+		isPaused: false,
 		currentSong: null,
 		error: null,
 		isSearching: false,
@@ -28,7 +29,8 @@ export default function App({ initialQuery }: Props) {
 	});
 	const [input, setInput] = useState(initialQuery || '');
 	const { exit } = useApp();
-	const musicPlayer = new MusicPlayerService();
+	const musicPlayerRef = useRef<MusicPlayerService>(new MusicPlayerService());
+	const musicPlayer = musicPlayerRef.current;
 	const items = [
 		{ label: 'Music Player', screen: 'music-player' },
 		{ label: 'Playlists', screen: 'playlists' },
@@ -80,8 +82,8 @@ export default function App({ initialQuery }: Props) {
 
 			// Wait for stream to be ready, then play
 			const stream = await streamPromise;
+			setState((prev: MusicPlayerState) => ({ ...prev, isPlaying: true }));
 			await musicPlayer.playStream(songInfo, stream);
-			setState((prev: MusicPlayerState) => ({ ...prev, isPlaying: false }));
 		} catch (error) {
 			setState((prev: MusicPlayerState) => ({
 				...prev,
@@ -114,6 +116,18 @@ export default function App({ initialQuery }: Props) {
 			return;
 		}
 
+		// Spacebar toggles pause/play
+		if (input2 === ' ' && state.isPlaying) {
+			if (!state.isPaused) {
+				musicPlayer.pause();
+				setState(prev => ({ ...prev, isPaused: true }));
+			} else {
+				musicPlayer.resume();
+				setState(prev => ({ ...prev, isPaused: false }));
+			}
+			return;
+		}
+
 		if (key.return && !state.isPlaying) {
 			handleSearch(input);
 		} else if (input2.length > 0) {
@@ -139,6 +153,11 @@ export default function App({ initialQuery }: Props) {
 
 			{selectedIndex >= 0 && selectedIndex < items.length && items[selectedIndex]?.screen === 'music-player' && (
 				<MusicPlayer state={state} input={input} />
+			)}
+			{state.isPlaying && (
+				<Text color={state.isPaused ? 'yellow' : 'green'}>
+					{state.isPaused ? 'Paused (press space to resume)' : 'Playing (press space to pause)'}
+				</Text>
 			)}
 			{selectedIndex >= 0 && selectedIndex < items.length && items[selectedIndex]?.screen === 'playlists' && (
 				<Playlists />
