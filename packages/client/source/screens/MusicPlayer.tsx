@@ -2,6 +2,7 @@ import React from 'react';
 import { Box, Text } from 'ink';
 import { ProgressBar } from '../components/ProgressBar.js';
 import { MusicPlayerState } from '../types.js';
+import { BlinkingCursor } from '../components/BlinkingCursor.js';
 
 interface MusicPlayerScreenProps {
   state: MusicPlayerState;
@@ -23,6 +24,7 @@ export const MusicPlayer: React.FC<MusicPlayerScreenProps> = ({ state, input }) 
         <Box marginBottom={1}>
           <Text>Enter song name to search: </Text>
           <Text color="green">{input}</Text>
+          <BlinkingCursor />
         </Box>
       )}
 
