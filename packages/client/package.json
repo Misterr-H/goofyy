@@ -30,7 +30,6 @@
 		"ink": "^4.1.0",
 		"meow": "^11.0.0",
 		"react": "^18.2.0",
-		"speaker": "^0.5.5",
 		"naudiodon2": "github:Misterr-H/naudiodon2#node-pre-gyp"
 	},
 	"devDependencies": {
