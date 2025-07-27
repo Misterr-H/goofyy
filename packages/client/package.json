@@ -31,7 +31,7 @@
 		"meow": "^11.0.0",
 		"react": "^18.2.0",
 		"speaker": "^0.5.5",
-		"naudiodon2": "github:nextliveab/naudiodon2"
+		"naudiodon2": "github:Misterr-H/naudiodon2#node-pre-gyp"
 	},
 	"devDependencies": {
 		"@sindresorhus/tsconfig": "^3.0.1",
