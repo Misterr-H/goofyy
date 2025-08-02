@@ -122,7 +122,7 @@ export class MusicPlayerService {
                     sampleFormat: portAudio.SampleFormat16Bit,
                     sampleRate: 44100,
                     deviceId: -1, // default output device
-                    closeOnError: true
+                    closeOnError: false
                 }
             }) as unknown as AudioIO;
 
