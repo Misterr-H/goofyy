@@ -1,34 +1,32 @@
 import got from 'got';
-import * as portAudio from 'naudiodon2';
+import { spawn } from 'child_process';
 import { SongInfo } from '../types.js';
 import { baseUrl } from '../baseUrl.js';
-
-// Minimal type declaration for naudiodon AudioIO
-// Remove or move to a .d.ts file if you add full types later
-interface AudioIO extends NodeJS.WritableStream {
-    start(): void;
-    quit(): void;
-    on(event: 'close', listener: () => void): this;
-}
+import fs from 'fs';
+import path from 'path';
+import os from 'os';
 
 export class MusicPlayerService {
-    private speaker: AudioIO | null = null;
+    private currentProcess: any = null;
     private onProgressUpdate: ((elapsed: number) => void) | null = null;
-    private progressInterval: NodeJS.Timeout | null = null;
+    private progressInterval: any = null;
     private startTime: number = 0;
-    // @ts-ignore
     private duration: number = 0;
     private paused: boolean = false;
-    private currentStream: NodeJS.ReadableStream | null = null;
     private pausedElapsed: number = 0;
 
     async checkDependencies(): Promise<string[]> {
+        // For Windows, we'll use built-in PowerShell
+        // For macOS, we'll use built-in afplay
+        // For Linux, we'll try common audio players
         return [];
     }
 
-    // @ts-ignore
     getInstallInstructions(missing: string[]): string {
-        return '';
+        if (process.platform === 'linux') {
+            return `Install audio player: sudo apt install mpg123 (or mplayer/vlc/ffmpeg)`;
+        }
+        return 'Audio support is built-in for your system.';
     }
 
     // Fetch metadata only
@@ -68,77 +66,313 @@ export class MusicPlayerService {
     private formatDuration(seconds: number): string {
         const m = Math.floor(seconds / 60);
         const s = Math.floor(seconds % 60);
-        return `${m}:${s.toString().padStart(2, '0')}`;
+        return `${m}:${s < 10 ? '0' : ''}${s}`;
     }
 
-    // Play using a provided stream and songInfo
-    async playStream(songInfo: SongInfo, stream: NodeJS.ReadableStream): Promise<void> {
+    // Play stream directly using system audio players
+    async playStream(songInfo: SongInfo, stream: any): Promise<void> {
         return new Promise((resolve, reject) => {
             this.startTime = Date.now();
             this.duration = this.parseDuration(songInfo.duration);
             this.paused = false;
-            this.currentStream = stream;
             this.pausedElapsed = 0;
 
-            // @ts-ignore
-            this.speaker = new portAudio.AudioIO({
-                outOptions: {
-                    channelCount: 2,
-                    sampleFormat: portAudio.SampleFormat16Bit,
-                    sampleRate: 44100,
-                    deviceId: -1, // default output device
-                    closeOnError: true
+            try {
+                if (process.platform === 'win32') {
+                    // For Windows, download and play using built-in methods
+                    this.playOnWindows(songInfo.url).then(resolve).catch(reject);
+                } else if (process.platform === 'darwin') {
+                    // Use afplay with the WAV stream on macOS
+                    this.currentProcess = spawn('afplay', [songInfo.url]);
+                    this.setupProcessHandlers(resolve, reject);
+                } else {
+                    // Linux - try available players
+                    this.tryLinuxFallback(songInfo.url).then(resolve).catch(reject);
                 }
-            }) as unknown as AudioIO;
 
-            stream.on('error', (err: Error) => {
-                if (this.progressInterval) clearInterval(this.progressInterval);
+                // Start progress tracking
+                if (this.onProgressUpdate) {
+                    this.progressInterval = setInterval(() => {
+                        if (!this.paused) {
+                            const elapsed = (Date.now() - this.startTime) / 1000;
+                            if (this.onProgressUpdate) {
+                                this.onProgressUpdate(elapsed);
+                            }
+                        }
+                    }, 1000);
+                }
+
+            } catch (err) {
                 reject(err);
-            });
-
-            this.speaker.on('close', () => {
-                if (this.progressInterval) clearInterval(this.progressInterval);
-                resolve();
-            });
-
-            stream.pipe(this.speaker);
-            this.speaker.start();
-
-            if (this.onProgressUpdate) {
-                this.progressInterval = setInterval(() => {
-                    const elapsed = (Date.now() - this.startTime) / 1000;
-                    if (this.onProgressUpdate) {
-                        this.onProgressUpdate(elapsed);
-                    }
-                }, 1000);
             }
         });
     }
 
-    pause() {
-        if (this.currentStream && !this.paused) {
-            this.currentStream.unpipe();
-            this.paused = true;
-            // Store elapsed time at pause
-            this.pausedElapsed = (Date.now() - this.startTime) / 1000;
-            if (this.progressInterval) {
-                clearInterval(this.progressInterval);
-                this.progressInterval = null;
+    private setupProcessHandlers(resolve: () => void, reject: (err: Error) => void) {
+        if (this.currentProcess) {
+            this.currentProcess.on('close', () => {
+                if (this.progressInterval) {
+                    clearInterval(this.progressInterval);
+                    this.progressInterval = null;
+                }
+                resolve();
+            });
+
+            this.currentProcess.on('error', (err: Error) => {
+                if (this.progressInterval) {
+                    clearInterval(this.progressInterval);
+                    this.progressInterval = null;
+                }
+                reject(err);
+            });
+        }
+    }
+
+    private async playOnWindows(url: string): Promise<void> {
+        // Use a truly silent background approach for terminal-based playback
+        return await this.playWithSilentBackgroundPlayer(url);
+    }
+
+    private async playWithSilentBackgroundPlayer(url: string): Promise<void> {
+        return new Promise((resolve, reject) => {
+            // Download first, then play silently in background
+            const tempFile = path.join(os.tmpdir(), `goofyy_${Date.now()}.wav`);
+            const writeStream = fs.createWriteStream(tempFile);
+            const audioStream = got.stream(url);
+
+            console.log('Downloading audio for background playback...');
+            audioStream.pipe(writeStream);
+
+            writeStream.on('finish', () => {
+                console.log('Playing audio silently in background...');
+                
+                // Use PowerShell with WindowStyle Hidden and no GUI - completely silent
+                const psScript = `
+                    Add-Type -AssemblyName presentationCore
+                    $mediaPlayer = New-Object System.Windows.Media.MediaPlayer
+                    try {
+                        $mediaPlayer.Open([uri]'file:///${tempFile.replace(/\\/g, '/')}')
+                        $mediaPlayer.Play()
+                        
+                        # Wait for media to load
+                        $timeout = 0
+                        while (-not $mediaPlayer.NaturalDuration.HasTimeSpan -and $timeout -lt 50) {
+                            Start-Sleep -Milliseconds 100
+                            $timeout++
+                        }
+                        
+                        if ($mediaPlayer.NaturalDuration.HasTimeSpan) {
+                            $duration = $mediaPlayer.NaturalDuration.TimeSpan.TotalSeconds
+                            # Play for the full duration
+                            Start-Sleep -Seconds $duration
+                        } else {
+                            # Fallback: play for estimated duration
+                            Start-Sleep -Seconds 180
+                        }
+                    } catch {
+                        # Silent error handling - don't show errors to user
+                    } finally {
+                        try {
+                            $mediaPlayer.Close()
+                            $mediaPlayer = $null
+                            Remove-Item '${tempFile.replace(/\\/g, '\\\\')}' -Force -ErrorAction SilentlyContinue
+                        } catch {}
+                    }
+                `;
+
+                this.currentProcess = spawn('powershell', [
+                    '-ExecutionPolicy', 'Bypass',
+                    '-WindowStyle', 'Hidden',
+                    '-NoProfile',
+                    '-NonInteractive',
+                    '-Command', psScript
+                ], {
+                    stdio: ['ignore', 'ignore', 'ignore'], // Completely silent
+                    windowsHide: true,
+                    detached: false
+                });
+
+                // No output logging - keep it completely silent for terminal use
+                this.currentProcess.on('close', () => {
+                    console.log('Background audio playback completed');
+                    resolve();
+                });
+
+                this.currentProcess.on('error', (err: Error) => {
+                    console.log('Audio playback failed, trying fallback...');
+                    // Try fallback method
+                    this.playWithSimpleBackgroundMethod(tempFile).then(resolve).catch(reject);
+                });
+            });
+
+            writeStream.on('error', (err) => {
+                try { fs.unlinkSync(tempFile); } catch {}
+                reject(err);
+            });
+
+            audioStream.on('error', (err) => {
+                try { fs.unlinkSync(tempFile); } catch {}
+                reject(err);
+            });
+        });
+    }
+
+    private async playWithSimpleBackgroundMethod(tempFile: string): Promise<void> {
+        return new Promise((resolve, reject) => {
+            // Simple fallback: use wmplayer in minimized mode
+            this.currentProcess = spawn('cmd', ['/c', 'start', '/min', 'wmplayer', '/task', tempFile], {
+                stdio: ['ignore', 'ignore', 'ignore'],
+                windowsHide: true,
+                detached: true
+            });
+
+            // Estimate duration and clean up
+            setTimeout(() => {
+                try { fs.unlinkSync(tempFile); } catch {}
+                resolve();
+            }, 180000); // 3 minutes max
+
+            this.currentProcess.on('error', () => {
+                try { fs.unlinkSync(tempFile); } catch {}
+                reject(new Error('All audio playback methods failed'));
+            });
+        });
+    }
+
+    private async downloadAndPlay(url: string): Promise<void> {
+        return new Promise((resolve, reject) => {
+            const tempFile = path.join(os.tmpdir(), `goofyy_${Date.now()}.wav`);
+            const writeStream = fs.createWriteStream(tempFile);
+            const audioStream = got.stream(url);
+
+            console.log('Downloading audio to:', tempFile);
+            audioStream.pipe(writeStream);
+
+            writeStream.on('finish', () => {
+                console.log('Download complete, attempting to play...');
+                
+                // Use the simplest Windows approach - just open the file with default association
+                this.currentProcess = spawn('cmd', ['/c', 'start', '""', tempFile], {
+                    stdio: ['pipe', 'pipe', 'pipe']
+                });
+
+                this.currentProcess.stdout?.on('data', (data: Buffer) => {
+                    console.log('CMD Output:', data.toString().trim());
+                });
+
+                this.currentProcess.stderr?.on('data', (data: Buffer) => {
+                    console.log('CMD Error:', data.toString().trim());
+                });
+
+                this.currentProcess.on('close', (code: number) => {
+                    console.log('Player closed with code:', code);
+                    // Clean up temp file after a delay to allow playback
+                    setTimeout(() => {
+                        try { 
+                            fs.unlinkSync(tempFile);
+                            console.log('Temp file cleaned up');
+                        } catch (err) {
+                            console.log('Failed to clean temp file:', err);
+                        }
+                    }, 5000);
+                    resolve();
+                });
+
+                this.currentProcess.on('error', (err: Error) => {
+                    console.error('Player error:', err);
+                    try { fs.unlinkSync(tempFile); } catch {}
+                    reject(err);
+                });
+            });
+
+            writeStream.on('error', (err) => {
+                console.error('Write stream error:', err);
+                try { fs.unlinkSync(tempFile); } catch {}
+                reject(err);
+            });
+            
+            audioStream.on('error', (err) => {
+                console.error('Audio stream error:', err);
+                try { fs.unlinkSync(tempFile); } catch {}
+                reject(err);
+            });
+        });
+    }
+
+    private async tryLinuxFallback(url: string): Promise<void> {
+        const players = [
+            // Try ffplay first (best for HTTP WAV streams)
+            ['ffplay', ['-nodisp', '-autoexit', '-loglevel', 'quiet', url]],
+            // mpv (excellent for WAV)
+            ['mpv', ['--no-video', '--really-quiet', url]],
+            // VLC command line
+            ['vlc', ['--intf', 'dummy', '--play-and-exit', url]],
+            ['cvlc', ['--play-and-exit', url]],
+            // mplayer
+            ['mplayer', ['-really-quiet', url]],
+            // paplay (PulseAudio) with curl
+            ['bash', ['-c', `curl -s "${url}" | paplay --format=s16le --rate=44100 --channels=2`]],
+            // aplay (ALSA) with curl
+            ['bash', ['-c', `curl -s "${url}" | aplay -f S16_LE -r 44100 -c 2`]]
+        ];
+        
+        for (const [player, args] of players) {
+            try {
+                return await new Promise((resolve, reject) => {
+                    const process = spawn(player as string, args as string[]);
+                    process.on('close', () => resolve());
+                    process.on('error', reject);
+                });
+            } catch {
+                continue;
             }
+        }
+        
+        throw new Error('No audio player found. Please install ffmpeg, mpv, vlc, or mplayer.');
+    }
+
+    pause() {
+        this.paused = true;
+        this.pausedElapsed = (Date.now() - this.startTime) / 1000;
+        
+        if (this.currentProcess && !this.currentProcess.killed) {
+            try {
+                if (process.platform !== 'win32') {
+                    this.currentProcess.kill('SIGSTOP'); // Pause on Unix
+                }
+            } catch {
+                // If pause doesn't work, we'll just track the pause state
+            }
+        }
+        
+        if (this.progressInterval) {
+            clearInterval(this.progressInterval);
+            this.progressInterval = null;
         }
     }
 
     resume() {
-        if (this.currentStream && this.paused && this.speaker) {
-            this.currentStream.pipe(this.speaker);
+        if (this.paused) {
             this.paused = false;
-            // Adjust startTime so elapsed calculation resumes correctly
             this.startTime = Date.now() - this.pausedElapsed * 1000;
+            
+            if (this.currentProcess && !this.currentProcess.killed) {
+                try {
+                    if (process.platform !== 'win32') {
+                        this.currentProcess.kill('SIGCONT'); // Resume on Unix
+                    }
+                } catch {
+                    // If resume doesn't work, just continue tracking
+                }
+            }
+            
             if (this.onProgressUpdate) {
                 this.progressInterval = setInterval(() => {
-                    const elapsed = (Date.now() - this.startTime) / 1000;
-                    if (this.onProgressUpdate) {
-                        this.onProgressUpdate(elapsed);
+                    if (!this.paused) {
+                        const elapsed = (Date.now() - this.startTime) / 1000;
+                        if (this.onProgressUpdate) {
+                            this.onProgressUpdate(elapsed);
+                        }
                     }
                 }, 1000);
             }
@@ -151,53 +385,19 @@ export class MusicPlayerService {
 
     // Keep for backward compatibility
     async playSong(songInfo: SongInfo): Promise<void> {
-        return new Promise((resolve, reject) => {
-            this.startTime = Date.now();
-            this.duration = this.parseDuration(songInfo.duration);
-
-            // @ts-ignore
-            this.speaker = new portAudio.AudioIO({
-                outOptions: {
-                    channelCount: 2,
-                    sampleFormat: portAudio.SampleFormat16Bit,
-                    sampleRate: 44100,
-                    deviceId: -1, // default output device
-                    closeOnError: false
-                }
-            }) as unknown as AudioIO;
-
-            const stream = got.stream(songInfo.url);
-
-            stream.on('error', (err: Error) => {
-                if (this.progressInterval) clearInterval(this.progressInterval);
-                reject(err);
-            });
-
-            this.speaker.on('close', () => {
-                if (this.progressInterval) clearInterval(this.progressInterval);
-                resolve();
-            });
-
-            stream.pipe(this.speaker);
-            this.speaker.start();
-
-            if (this.onProgressUpdate) {
-                this.progressInterval = setInterval(() => {
-                    const elapsed = (Date.now() - this.startTime) / 1000;
-                    if (this.onProgressUpdate) {
-                        this.onProgressUpdate(elapsed);
-                    }
-                }, 1000);
-            }
-        });
+        // Since you're streaming from server, we don't need the got.stream()
+        // Just pass the URL directly to the audio player
+        return this.playStream(songInfo, null);
     }
 
     cleanup() {
-        if (this.speaker) {
-            this.speaker.quit();
+        if (this.currentProcess && !this.currentProcess.killed) {
+            this.currentProcess.kill();
         }
+        
         if (this.progressInterval) {
             clearInterval(this.progressInterval);
+            this.progressInterval = null;
         }
     }
 } 
