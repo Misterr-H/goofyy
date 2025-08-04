@@ -19,6 +19,16 @@ const app = express();
 // Middleware
 app.use(express.json());
 
+// Configure server timeouts for long-running streams
+app.use((req, res, next) => {
+    // Disable timeout for streaming requests
+    if (req.path === '/stream') {
+        req.setTimeout(0); // No timeout
+        res.setTimeout(0); // No timeout
+    }
+    next();
+});
+
 // Redis client setup
 const redisClient = createClient({
     url: process.env.REDIS_URL || 'redis://localhost:6379'
@@ -161,6 +171,17 @@ async function getVideoUrl(query: string) {
     });
 }
 
+// Helper to sanitize header values for HTTP
+function sanitizeHeaderValue(value: string | number | undefined): string {
+    if (value === undefined || value === null) return '';
+    let str = String(value);
+    // Remove all non-printable ASCII except space
+    str = str.replace(/[^\x20-\x7E]+/g, ' ').trim();
+    // Remove double quotes (not allowed in header values)
+    str = str.replace(/"/g, '');
+    return str;
+}
+
 app.get('/metadata', async (req, res) => {
     const query = req.query.q as string;
     client.capture({
@@ -266,6 +287,17 @@ app.delete('/cache/clear', async (req, res) => {
     }
 });
 
+// Health check endpoint for monitoring
+app.get('/health', (req, res) => {
+    res.json({
+        status: 'healthy',
+        timestamp: new Date().toISOString(),
+        uptime: process.uptime(),
+        memory: process.memoryUsage(),
+        redis: redisClient.isReady ? 'connected' : 'disconnected'
+    });
+});
+
 app.get('/stream', async (req, res) => {
     const query = req.query.q as string;
     client.capture({
@@ -276,59 +308,173 @@ app.get('/stream', async (req, res) => {
         }
     });
 
-    // Start both metadata and URL fetching in parallel
-    const [info, videoUrl] = await Promise.all([
-        getSongInfo(query).catch(e => {
-            console.error('Error fetching song info for stream:', e);
-            return {};
-        }),
-        getVideoUrl(query).catch(e => {
-            console.error('Error fetching video URL:', e);
-            throw e;
-        })
-    ]);
+    if (!query) {
+        return res.status(400).json({ error: 'Missing query parameter' });
+    }
 
-    // Set headers immediately
-    if (info.title) res.set('X-Song-Title', info.title);
-    if (info.duration) res.set('X-Song-Duration', info.duration.toString());
-    if (info.artist) res.set('X-Song-Artist', info.artist);
+    let ffmpeg: any = null;
+    let streamStarted = false;
 
-    // Use WAV format for reliable streaming
-    const ffmpeg = spawn('ffmpeg', [
-        '-i', videoUrl as string,
-        '-f', 'wav',
-        '-acodec', 'pcm_s16le',
-        '-ar', '44100',
-        '-ac', '2',
-        '-'
-    ]);
+    try {
+        // Start both metadata and URL fetching in parallel
+        const [info, videoUrl] = await Promise.all([
+            getSongInfo(query).catch(e => {
+                console.error('Error fetching song info for stream:', e);
+                return {};
+            }),
+            getVideoUrl(query).catch(e => {
+                console.error('Error fetching video URL:', e);
+                throw e;
+            })
+        ]);
 
-    res.set({
-        'Content-Type': 'audio/wav',
-        'Transfer-Encoding': 'chunked',
-        'Cache-Control': 'no-cache',
-        'Connection': 'keep-alive'
-    });
-
-    ffmpeg.stdout.pipe(res);
-
-    ffmpeg.on('error', (err: Error) => {
-        console.error('ffmpeg error:', err);
-        if (!res.headersSent) {
-            res.status(500).json({ error: 'Streaming failed' });
-        } else {
-            res.end();
+        // Set headers immediately (only if sanitized value is non-empty)
+        const sanitizedTitle = sanitizeHeaderValue(info.title);
+        const sanitizedDuration = sanitizeHeaderValue(info.duration);
+        const sanitizedArtist = sanitizeHeaderValue(info.artist);
+        
+        if (sanitizedTitle) {
+            console.debug('Setting X-Song-Title header:', sanitizedTitle);
+            res.set('X-Song-Title', sanitizedTitle);
         }
-    });
+        if (sanitizedDuration) {
+            console.debug('Setting X-Song-Duration header:', sanitizedDuration);
+            res.set('X-Song-Duration', sanitizedDuration);
+        }
+        if (sanitizedArtist) {
+            console.debug('Setting X-Song-Artist header:', sanitizedArtist);
+            res.set('X-Song-Artist', sanitizedArtist);
+        }
 
-    res.on('close', () => {
-        ffmpeg.kill('SIGINT');
-    });
+        // Enhanced headers for better streaming
+        res.set({
+            'Content-Type': 'audio/wav',
+            'Transfer-Encoding': 'chunked',
+            'Cache-Control': 'no-cache',
+            'Connection': 'keep-alive',
+            'X-Accel-Buffering': 'no', // Disable nginx buffering if present
+            'Keep-Alive': 'timeout=300, max=1000' // Keep connection alive
+        });
+
+        // Use WAV format for reliable streaming with better buffering
+        ffmpeg = spawn('ffmpeg', [
+            '-i', videoUrl as string,
+            '-f', 'wav',
+            '-acodec', 'pcm_s16le',
+            '-ar', '44100',
+            '-ac', '2',
+            '-bufsize', '8192', // Buffer size for better streaming
+            '-'
+        ]);
+
+        // Track stream progress
+        let bytesStreamed = 0;
+        const startTime = Date.now();
+
+        ffmpeg.stdout.on('data', (chunk: Buffer) => {
+            bytesStreamed += chunk.length;
+            streamStarted = true;
+            
+            // Log progress every 10MB
+            if (bytesStreamed % (10 * 1024 * 1024) === 0) {
+                const elapsed = (Date.now() - startTime) / 1000;
+                const rate = (bytesStreamed / 1024 / 1024 / elapsed).toFixed(2);
+                console.log(`Stream progress: ${(bytesStreamed / 1024 / 1024).toFixed(1)}MB at ${rate}MB/s`);
+            }
+        });
+
+        ffmpeg.stdout.on('error', (err: Error) => {
+            console.error('FFmpeg stdout error:', err);
+            if (!res.headersSent) {
+                res.status(500).json({ error: 'Streaming failed' });
+            } else {
+                res.end();
+            }
+        });
+
+        ffmpeg.stderr.on('data', (data: Buffer) => {
+            // Log FFmpeg stderr for debugging (usually progress info)
+            const message = data.toString().trim();
+            if (message.includes('time=') || message.includes('size=')) {
+                console.debug('FFmpeg:', message);
+            }
+        });
+
+        ffmpeg.on('error', (err: Error) => {
+            console.error('FFmpeg process error:', err);
+            if (!res.headersSent) {
+                res.status(500).json({ error: 'Streaming failed' });
+            } else {
+                res.end();
+            }
+        });
+
+        ffmpeg.on('close', (code: number) => {
+            console.log(`FFmpeg process closed with code ${code}`);
+            if (code !== 0 && !res.headersSent) {
+                res.status(500).json({ error: 'Streaming failed' });
+            } else if (code === 0 && !res.finished) {
+                res.end();
+            }
+        });
+
+        // Handle client disconnect
+        res.on('close', () => {
+            console.log('Client disconnected, killing FFmpeg process');
+            if (ffmpeg && !ffmpeg.killed) {
+                ffmpeg.kill('SIGINT');
+            }
+        });
+
+        res.on('error', (err: Error) => {
+            console.error('Response error:', err);
+            if (ffmpeg && !ffmpeg.killed) {
+                ffmpeg.kill('SIGINT');
+            }
+        });
+
+        // Handle request abort
+        req.on('aborted', () => {
+            console.log('Request aborted by client');
+            if (ffmpeg && !ffmpeg.killed) {
+                ffmpeg.kill('SIGINT');
+            }
+        });
+
+        // Pipe FFmpeg output to response
+        ffmpeg.stdout.pipe(res);
+
+        // Set a timeout to check if stream actually started
+        setTimeout(() => {
+            if (!streamStarted) {
+                console.error('Stream failed to start within 10 seconds');
+                if (!res.headersSent) {
+                    res.status(500).json({ error: 'Stream failed to start' });
+                }
+                if (ffmpeg && !ffmpeg.killed) {
+                    ffmpeg.kill('SIGINT');
+                }
+            }
+        }, 10000);
+
+    } catch (error) {
+        console.error('Stream setup error:', error);
+        if (!res.headersSent) {
+            res.status(500).json({ error: 'Failed to setup stream' });
+        }
+        if (ffmpeg && !ffmpeg.killed) {
+            ffmpeg.kill('SIGINT');
+        }
+    }
 });
 
 const server = app.listen(3000, () => {
     console.log('Music server ready on http://localhost:3000');
 });
+
+// Configure server timeouts for long-running connections
+server.keepAliveTimeout = 300000; // 5 minutes
+server.headersTimeout = 301000; // Slightly higher than keepAliveTimeout
 
 // Graceful shutdown
 process.on('SIGINT', async () => {

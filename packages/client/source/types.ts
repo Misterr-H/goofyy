@@ -6,6 +6,7 @@ export interface SongInfo {
 
 export interface MusicPlayerState {
     isPlaying: boolean;
+    isPaused: boolean;
     currentSong: SongInfo | null;
     error: string | null;
     isSearching: boolean;
